@@ -1,0 +1,59 @@
+<connection-pool name="jdbc" logger="Q2"
+                 realm="connection-pool" class="org.redlamp.util.XapiPool">
+    <property name="jdbc.driver"
+              value="com.sybase.jdbc4.jdbc.SybDriver"/>
+
+    <property name="online.jdbc.url"
+              value="jdbc:sybase:Tds:10.70.1.26:10000/xapi"/>
+
+    <property name="online.jdbc.user" value="sa"></property>
+    <property name="online.jdbc.paswd"
+              value="911811301021121901511"/>
+
+    <property name="offline.jdbc.url"
+              value="jdbc:sybase:Tds:10.70.1.41:10000/xapi_offline"/>
+    <property name="offline.jdbc.user" value="OFFUSER"></property>
+    <property name="offline.jdbc.paswd"
+              value="887002006768907004090908808007"/>
+
+
+    <property name="QT_CC" value="T"/>
+    <property name="init.conns" value="2"/>
+    <property name="min.idle" value="2"/>
+    <property name="max.conns" value="5"/>
+    <property name="test.script" value="select getdate()"/>
+    <property name="core.schema" value="training"/>
+    <property name="test.mode" value="false"/>
+    <property name="phone.prefix" value="234"/>
+
+    <!-- Charge Codes for USSD -->
+    <property name="mini.statement" value="M"/>
+    <property name="balance.enquiry" value="B"/>
+    <property name="internal.transfer" value="T"/>
+    <property name="quick-teller" value="Q"/>
+    <property name="airtime" value="C"/>
+    <property name="billpayment" value="P"/>
+
+    <!-- Date format for Web Service display -->
+    <property name="date.format" value="dd-MMM-yyyy"/>
+
+    <property name="bank.code" value="999100"/>
+
+    <property name="nibss.url"
+              value="http://192.168.4.23:5588/NIPClient/CNService"/>
+
+    <property name="nibss.allow" value="false"/>
+    <property name="DEBUG_ENABLED" value="true"/>
+
+    <property name="startAlertsService" value="true"/>
+    <property name="lanHasProxy" value="false"/>
+    <property name="lanProxyServer" value="10.176.11.3"/>
+    <property name="lanProxyPort" value="3128"/>
+    <property name="SMSGatewayURL"
+              value="http://localhost:9000/api/v1/alerts"/>
+    <property name="SMSGatewayUser" value="Advans"/>
+    <property name="SMSGatewayPassword"
+              value="601421201311201750021850950"/>
+    <property name="SMSGatewaySourceName" value="Advans"/>
+
+</connection-pool>

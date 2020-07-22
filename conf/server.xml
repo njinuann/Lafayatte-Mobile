@@ -1,0 +1,100 @@
+<?xml version="1.0"?>
+<!DOCTYPE Configure PUBLIC "-//Jetty//Configure//EN" "http://www.eclipse.org/jetty/configure_9_0.dtd">
+<Configure id="Server" class="org.eclipse.jetty.server.Server">
+
+	<!-- =========================================================== -->
+	<!-- Server Thread Pool -->
+	<!-- =========================================================== -->
+	<Arg name="threadpool">
+		<New id="threadpool" class="org.eclipse.jetty.util.thread.QueuedThreadPool">
+			<Arg name="minThreads" type="int">10</Arg>
+			<Arg name="maxThreads" type="int">200</Arg>
+			<Arg name="idleTimeout" type="int">60000</Arg>
+			<Set name="detailedDump">false</Set>
+		</New>
+	</Arg>
+
+	<!-- =========================================================== -->
+	<!-- Add shared Scheduler instance -->
+	<!-- =========================================================== -->
+	<Call name="addBean">
+		<Arg>
+			<New class="org.eclipse.jetty.util.thread.ScheduledExecutorScheduler" />
+		</Arg>
+	</Call>
+
+	<New id="connector" class="org.eclipse.jetty.server.ServerConnector">
+		<Arg>
+			<Ref refid="Server" />
+		</Arg>
+		<Set name="Port" type="int">
+			<Property name="jetty.port" default="8443" />
+		</Set>
+		<Set name="IdleTimeout" type="long">
+			<Property name="jetty.port" default="30000" />
+		</Set>
+	</New>
+
+
+	<Call name="addConnector">
+		<Arg>
+			<Ref refid="connector" />
+		</Arg>
+	</Call>
+
+
+	<Call name="addBean">
+		<Arg>
+			<New class="org.eclipse.jetty.server.LowResourceMonitor">
+				<Arg name="server">
+					<Ref refid='Server' />
+				</Arg>
+				<Set name="period">
+					<Property name="jetty.lowresources.period" deprecated="lowresources.period"
+						default="1000" />
+				</Set>
+				<Set name="lowResourcesIdleTimeout">
+					<Property name="jetty.lowresources.idleTimeout"
+						deprecated="lowresources.lowResourcesIdleTimeout" default="1000" />
+				</Set>
+				<Set name="monitorThreads">
+					<Property name="jetty.lowresources.monitorThreads"
+						deprecated="lowresources.monitorThreads" default="true" />
+				</Set>
+				<Set name="maxConnections">
+					<Property name="jetty.lowresources.maxConnections"
+						deprecated="lowresources.maxConnections" default="0" />
+				</Set>
+				<Set name="maxMemory">
+					<Property name="jetty.lowresources.maxMemory" deprecated="lowresources.maxMemory"
+						default="0" />
+				</Set>
+				<Set name="maxLowResourcesTime">
+					<Property name="jetty.lowresources.maxLowResourcesTime"
+						deprecated="lowresources.maxLowResourcesTime" default="5000" />
+				</Set>
+			</New>
+		</Arg>
+	</Call>
+
+	<!-- <New id="MBLitePool" class="org.eclipse.jetty.plus.jndi.Resource"> 
+		<Arg></Arg> <Arg>jdbc/mblite</Arg> <Arg> <New class="com.zaxxer.hikari.HikariDataSource"> 
+		<Arg> <New class="com.zaxxer.hikari.HikariConfig"> <Set name="MaximumPoolSize">5</Set> 
+		<Set name="MinimumIdle">2</Set> <Set name="ConnectionTestQuery">select getdate()</Set> 
+		<Set name="DriverClassName">net.sourceforge.jtds.jdbc.Driver</Set> <Set name="Username">sa</Set> 
+		<Set name="Password">neptune</Set> <Set name="PoolName">MBLite Pool</Set> 
+		<Set name="JdbcUrl">jdbc:jtds:sybase://10.70.1.26:10000/xapi</Set> <Call 
+		name="addDataSourceProperty"> <Arg>dataSource.cachePrepStmts</Arg> <Arg>true</Arg> 
+		</Call> <Call name="addDataSourceProperty"> <Arg>dataSource.prepStmtCacheSize</Arg> 
+		<Arg>120</Arg> </Call> <Call name="addDataSourceProperty"> <Arg>dataSource.prepStmtCacheSqlLimit</Arg> 
+		<Arg>2048</Arg> </Call> <Call name="addDataSourceProperty"> <Arg>dataSource.useServerPrepStmts</Arg> 
+		<Arg>true</Arg> </Call> </New> </Arg> </New> </Arg> </New> -->
+
+	<!-- =========================================================== -->
+	<!-- extra options -->
+	<!-- =========================================================== -->
+	<Set name="stopAtShutdown">true</Set>
+	<Set name="stopTimeout">1000</Set>
+	<Set name="dumpAfterStart">false</Set>
+	<Set name="dumpBeforeStop">false</Set>
+</Configure>

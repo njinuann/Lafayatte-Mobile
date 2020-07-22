@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<logger class="ug.ac.mak.java.logger.DailyLogListener">
+<?xml version="1.0" encoding="UTF-8"?>
+<logger class="ug.ac.mak.java.logger.DailyLogListener">
+<log realm="mbank" at="Wed Jul 22 21:02:16 EAT 2020.255">
+     <error>
+          <class>ServletException</class>
+          <message>com.sun.jersey.spi.container.servlet.ServletContainer-3e77a1ed@6b289c6b==com.sun.jersey.spi.container.servlet.ServletContainer,jsp=null,order=1,inst=false</message>
+          <stacktrace>
+               at org.eclipse.jetty.servlet.ServletHolder.initServlet(ServletHolder.java:658)
+               at org.eclipse.jetty.servlet.ServletHolder.initialize(ServletHolder.java:421)
+               at org.eclipse.jetty.servlet.ServletHandler.initialize(ServletHandler.java:760)
+               at org.eclipse.jetty.servlet.ServletContextHandler.startContext(ServletContextHandler.java:348)
+               at org.eclipse.jetty.server.handler.ContextHandler.doStart(ContextHandler.java:785)
+               at org.eclipse.jetty.servlet.ServletContextHandler.doStart(ServletContextHandler.java:261)
+               at org.eclipse.jetty.util.component.AbstractLifeCycle.start(AbstractLifeCycle.java:68)
+               at org.eclipse.jetty.util.component.ContainerLifeCycle.start(ContainerLifeCycle.java:131)
+               at org.eclipse.jetty.server.Server.start(Server.java:449)
+               at org.eclipse.jetty.util.component.ContainerLifeCycle.doStart(ContainerLifeCycle.java:105)
+               at org.eclipse.jetty.server.handler.AbstractHandler.doStart(AbstractHandler.java:113)
+               at org.eclipse.jetty.server.Server.doStart(Server.java:416)
+               at org.eclipse.jetty.util.component.AbstractLifeCycle.start(AbstractLifeCycle.java:68)
+               at org.redlamp.core.MainClass.startWebServer(MainClass.java:130)
+               at org.redlamp.core.MainClass.main(MainClass.java:56)
+          </stacktrace>
+     </error>
+</log>
+<?xml version="1.0" encoding="UTF-8"?>
+<logger class="ug.ac.mak.java.logger.DailyLogListener">
+<log realm="mbank" at="Wed Jul 22 21:06:42 EAT 2020.518">
+     <error>
+          <class>ServletException</class>
+          <message>com.sun.jersey.spi.container.servlet.ServletContainer-3e77a1ed@6b289c6b==com.sun.jersey.spi.container.servlet.ServletContainer,jsp=null,order=1,inst=false</message>
+          <stacktrace>
+               at org.eclipse.jetty.servlet.ServletHolder.initServlet(ServletHolder.java:658)
+               at org.eclipse.jetty.servlet.ServletHolder.initialize(ServletHolder.java:421)
+               at org.eclipse.jetty.servlet.ServletHandler.initialize(ServletHandler.java:760)
+               at org.eclipse.jetty.servlet.ServletContextHandler.startContext(ServletContextHandler.java:348)
+               at org.eclipse.jetty.server.handler.ContextHandler.doStart(ContextHandler.java:785)
+               at org.eclipse.jetty.servlet.ServletContextHandler.doStart(ServletContextHandler.java:261)
+               at org.eclipse.jetty.util.component.AbstractLifeCycle.start(AbstractLifeCycle.java:68)
+               at org.eclipse.jetty.util.component.ContainerLifeCycle.start(ContainerLifeCycle.java:131)
+               at org.eclipse.jetty.server.Server.start(Server.java:449)
+               at org.eclipse.jetty.util.component.ContainerLifeCycle.doStart(ContainerLifeCycle.java:105)
+               at org.eclipse.jetty.server.handler.AbstractHandler.doStart(AbstractHandler.java:113)
+               at org.eclipse.jetty.server.Server.doStart(Server.java:416)
+               at org.eclipse.jetty.util.component.AbstractLifeCycle.start(AbstractLifeCycle.java:68)
+               at org.redlamp.core.MainClass.startWebServer(MainClass.java:130)
+               at org.redlamp.core.MainClass.main(MainClass.java:56)
+          </stacktrace>
+     </error>
+</log>
+<?xml version="1.0" encoding="UTF-8"?>
+<logger class="ug.ac.mak.java.logger.DailyLogListener">
+<log realm="mbank" at="Wed Jul 22 21:07:05 EAT 2020.848">
+     <error>
+          <class>ServletException</class>
+          <message>com.sun.jersey.spi.container.servlet.ServletContainer-3e77a1ed@6b289c6b==com.sun.jersey.spi.container.servlet.ServletContainer,jsp=null,order=1,inst=false</message>
+          <stacktrace>
+               at org.eclipse.jetty.servlet.ServletHolder.initServlet(ServletHolder.java:658)
+               at org.eclipse.jetty.servlet.ServletHolder.initialize(ServletHolder.java:421)
+               at org.eclipse.jetty.servlet.ServletHandler.initialize(ServletHandler.java:760)
+               at org.eclipse.jetty.servlet.ServletContextHandler.startContext(ServletContextHandler.java:348)
+               at org.eclipse.jetty.server.handler.ContextHandler.doStart(ContextHandler.java:785)
+               at org.eclipse.jetty.servlet.ServletContextHandler.doStart(ServletContextHandler.java:261)
+               at org.eclipse.jetty.util.component.AbstractLifeCycle.start(AbstractLifeCycle.java:68)
+               at org.eclipse.jetty.util.component.ContainerLifeCycle.start(ContainerLifeCycle.java:131)
+               at org.eclipse.jetty.server.Server.start(Server.java:449)
+               at org.eclipse.jetty.util.component.ContainerLifeCycle.doStart(ContainerLifeCycle.java:105)
+               at org.eclipse.jetty.server.handler.AbstractHandler.doStart(AbstractHandler.java:113)
+               at org.eclipse.jetty.server.Server.doStart(Server.java:416)
+               at org.eclipse.jetty.util.component.AbstractLifeCycle.start(AbstractLifeCycle.java:68)
+               at org.redlamp.core.MainClass.startWebServer(MainClass.java:130)
+               at org.redlamp.core.MainClass.main(MainClass.java:56)
+          </stacktrace>
+     </error>
+</log>
+<?xml version="1.0" encoding="UTF-8"?>
+<logger class="ug.ac.mak.java.logger.DailyLogListener">
+<log realm="mbank" at="Wed Jul 22 21:10:31 EAT 2020.809">
+     <error>
+          <class>ServletException</class>
+          <message>com.sun.jersey.spi.container.servlet.ServletContainer-1dd02175@b2d213a6==com.sun.jersey.spi.container.servlet.ServletContainer,jsp=null,order=1,inst=false</message>
+          <stacktrace>
+               at org.eclipse.jetty.servlet.ServletHolder.initServlet(ServletHolder.java:658)
+               at org.eclipse.jetty.servlet.ServletHolder.initialize(ServletHolder.java:421)
+               at org.eclipse.jetty.servlet.ServletHandler.initialize(ServletHandler.java:760)
+               at org.eclipse.jetty.servlet.ServletContextHandler.startContext(ServletContextHandler.java:348)
+               at org.eclipse.jetty.server.handler.ContextHandler.doStart(ContextHandler.java:785)
+               at org.eclipse.jetty.servlet.ServletContextHandler.doStart(ServletContextHandler.java:261)
+               at org.eclipse.jetty.util.component.AbstractLifeCycle.start(AbstractLifeCycle.java:68)
+               at org.eclipse.jetty.util.component.ContainerLifeCycle.start(ContainerLifeCycle.java:131)
+               at org.eclipse.jetty.server.Server.start(Server.java:449)
+               at org.eclipse.jetty.util.component.ContainerLifeCycle.doStart(ContainerLifeCycle.java:105)
+               at org.eclipse.jetty.server.handler.AbstractHandler.doStart(AbstractHandler.java:113)
+               at org.eclipse.jetty.server.Server.doStart(Server.java:416)
+               at org.eclipse.jetty.util.component.AbstractLifeCycle.start(AbstractLifeCycle.java:68)
+               at org.redlamp.core.MainClass.startWebServer(MainClass.java:130)
+               at org.redlamp.core.MainClass.main(MainClass.java:56)
+          </stacktrace>
+     </error>
+</log>
+<?xml version="1.0" encoding="UTF-8"?>
+<logger class="ug.ac.mak.java.logger.DailyLogListener">
+<log realm="mbank" at="Wed Jul 22 21:13:22 EAT 2020.530">
+     <error>
+          <class>ServletException</class>
+          <message>com.sun.jersey.spi.container.servlet.ServletContainer-3e77a1ed@6b289c6b==com.sun.jersey.spi.container.servlet.ServletContainer,jsp=null,order=1,inst=false</message>
+          <stacktrace>
+               at org.eclipse.jetty.servlet.ServletHolder.initServlet(ServletHolder.java:658)
+               at org.eclipse.jetty.servlet.ServletHolder.initialize(ServletHolder.java:421)
+               at org.eclipse.jetty.servlet.ServletHandler.initialize(ServletHandler.java:760)
+               at org.eclipse.jetty.servlet.ServletContextHandler.startContext(ServletContextHandler.java:348)
+               at org.eclipse.jetty.server.handler.ContextHandler.doStart(ContextHandler.java:785)
+               at org.eclipse.jetty.servlet.ServletContextHandler.doStart(ServletContextHandler.java:261)
+               at org.eclipse.jetty.util.component.AbstractLifeCycle.start(AbstractLifeCycle.java:68)
+               at org.eclipse.jetty.util.component.ContainerLifeCycle.start(ContainerLifeCycle.java:131)
+               at org.eclipse.jetty.server.Server.start(Server.java:449)
+               at org.eclipse.jetty.util.component.ContainerLifeCycle.doStart(ContainerLifeCycle.java:105)
+               at org.eclipse.jetty.server.handler.AbstractHandler.doStart(AbstractHandler.java:113)
+               at org.eclipse.jetty.server.Server.doStart(Server.java:416)
+               at org.eclipse.jetty.util.component.AbstractLifeCycle.start(AbstractLifeCycle.java:68)
+               at org.redlamp.core.MainClass.startWebServer(MainClass.java:130)
+               at org.redlamp.core.MainClass.main(MainClass.java:56)
+          </stacktrace>
+     </error>
+</log>
+<?xml version="1.0" encoding="UTF-8"?>
+<logger class="ug.ac.mak.java.logger.DailyLogListener">
+<log realm="mbank" at="Wed Jul 22 21:22:38 EAT 2020.359">
+     <error>
+          <class>ServletException</class>
+          <message>com.sun.jersey.spi.container.servlet.ServletContainer-120d6fe6@7fde4e0==com.sun.jersey.spi.container.servlet.ServletContainer,jsp=null,order=1,inst=false</message>
+          <stacktrace>
+               at org.eclipse.jetty.servlet.ServletHolder.initServlet(ServletHolder.java:658)
+               at org.eclipse.jetty.servlet.ServletHolder.initialize(ServletHolder.java:421)
+               at org.eclipse.jetty.servlet.ServletHandler.initialize(ServletHandler.java:760)
+               at org.eclipse.jetty.servlet.ServletContextHandler.startContext(ServletContextHandler.java:348)
+               at org.eclipse.jetty.server.handler.ContextHandler.doStart(ContextHandler.java:785)
+               at org.eclipse.jetty.servlet.ServletContextHandler.doStart(ServletContextHandler.java:261)
+               at org.eclipse.jetty.util.component.AbstractLifeCycle.start(AbstractLifeCycle.java:68)
+               at org.eclipse.jetty.util.component.ContainerLifeCycle.start(ContainerLifeCycle.java:131)
+               at org.eclipse.jetty.server.Server.start(Server.java:449)
+               at org.eclipse.jetty.util.component.ContainerLifeCycle.doStart(ContainerLifeCycle.java:105)
+               at org.eclipse.jetty.server.handler.AbstractHandler.doStart(AbstractHandler.java:113)
+               at org.eclipse.jetty.server.Server.doStart(Server.java:416)
+               at org.eclipse.jetty.util.component.AbstractLifeCycle.start(AbstractLifeCycle.java:68)
+               at org.redlamp.core.MainClass.startWebServer(MainClass.java:130)
+               at org.redlamp.core.MainClass.main(MainClass.java:56)
+          </stacktrace>
+     </error>
+</log>
+<?xml version="1.0" encoding="UTF-8"?>
+<logger class="ug.ac.mak.java.logger.DailyLogListener">
+<log realm="mbank" at="Wed Jul 22 21:35:15 EAT 2020.675">
+     <error>
+          <class>ServletException</class>
+          <message>com.sun.jersey.spi.container.servlet.ServletContainer-1176dcec@dc963ac6==com.sun.jersey.spi.container.servlet.ServletContainer,jsp=null,order=1,inst=false</message>
+          <stacktrace>
+               at org.eclipse.jetty.servlet.ServletHolder.initServlet(ServletHolder.java:658)
+               at org.eclipse.jetty.servlet.ServletHolder.initialize(ServletHolder.java:421)
+               at org.eclipse.jetty.servlet.ServletHandler.initialize(ServletHandler.java:760)
+               at org.eclipse.jetty.servlet.ServletContextHandler.startContext(ServletContextHandler.java:348)
+               at org.eclipse.jetty.server.handler.ContextHandler.doStart(ContextHandler.java:785)
+               at org.eclipse.jetty.servlet.ServletContextHandler.doStart(ServletContextHandler.java:261)
+               at org.eclipse.jetty.util.component.AbstractLifeCycle.start(AbstractLifeCycle.java:68)
+               at org.eclipse.jetty.util.component.ContainerLifeCycle.start(ContainerLifeCycle.java:131)
+               at org.eclipse.jetty.server.Server.start(Server.java:449)
+               at org.eclipse.jetty.util.component.ContainerLifeCycle.doStart(ContainerLifeCycle.java:105)
+               at org.eclipse.jetty.server.handler.AbstractHandler.doStart(AbstractHandler.java:113)
+               at org.eclipse.jetty.server.Server.doStart(Server.java:416)
+               at org.eclipse.jetty.util.component.AbstractLifeCycle.start(AbstractLifeCycle.java:68)
+               at org.redlamp.core.MainClass.startWebServer(MainClass.java:130)
+               at org.redlamp.core.MainClass.main(MainClass.java:56)
+          </stacktrace>
+     </error>
+</log>
+<?xml version="1.0" encoding="UTF-8"?>
+<logger class="ug.ac.mak.java.logger.DailyLogListener">
+<?xml version="1.0" encoding="UTF-8"?>
+<logger class="ug.ac.mak.java.logger.DailyLogListener">

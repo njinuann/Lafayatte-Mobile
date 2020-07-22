@@ -1,0 +1,43 @@
+<txnmgr name="txn_mgr" logger="Q2"
+	class="org.jpos.transaction.TransactionManager" realm="txn_mgr">
+
+	<property name="space" value="transient:default" />
+	<property name="queue" value="txn_queue" />
+	<property name="sessions" value="10" />
+	<property name="max-sessions" value="30" />
+	<property name="trace" value="true" />
+	<property name="debug" value="true" />
+
+	<participant class="org.redlamp.iso.ServiceRouter"
+		name="service_router" logger="Q2">
+		<property name="0200" value="Transaction" />
+		<property name="1200" value="Transaction" />
+		<property name="2200" value="Transaction" />
+		<property name="8200" value="Transaction" />
+		<property name="0420" value="Transaction" />
+		<property name="0421" value="Transaction" />
+		<property name="0800" value="NetworkManagement" />
+	</participant>
+
+	<participant
+		class="org.redlamp.participants.ServiceResponder" logger="Q2" />
+
+	<group name="Transaction">
+		<participant class="org.redlamp.participants.FieldHandler"
+			logger="Q2" />
+		<participant
+			class="org.redlamp.participants.ServiceHandler" logger="Q2">
+			<property name="mux" value="fdr-mux" />
+			<property name="timeout" value="25000" />
+			<property name="threshold" value="12000" />
+			<property name="checkpoint" value="Transaction" />
+			<property name="reverse-on-timeout" value="true" />
+		</participant>
+	</group>
+
+	<group name="NetworkManagement">
+		<participant
+			class="org.redlamp.participants.NetworkHandler" logger="Q2" />
+	</group>
+
+</txnmgr>
