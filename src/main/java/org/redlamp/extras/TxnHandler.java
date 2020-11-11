@@ -254,7 +254,7 @@ public class TxnHandler implements AutoCloseable, ISO, SQL {
 		Map<String, Object> response = new HashMap<String, Object>();
 		try {
 			XapiTran tran = new XapiTran();
-			AccountMap fromAccount = accountName(acct_no, true);
+			AccountMap fromAccount = accountName(acct_no);
 			if (fromAccount.getNubanAccount() == null) {
 				response.put("responseCode", "58");
 				response.put("responseTxt", "Unable to locate nuban entry for account " + acct_no);
@@ -295,15 +295,16 @@ public class TxnHandler implements AutoCloseable, ISO, SQL {
 		return "Your request failed with a response code " + responseCode;
 	}
 
-	public AccountMap accountName(String accountNo, boolean nuban) {
+	public AccountMap accountName(String accountNo) {
 		AccountMap accountMap = new AccountMap();
+		boolean nuban = !accountNo.contains("-");
 		try (Statement stmt = conn.createStatement()) {
 
 			try (ResultSet rset = stmt
 					.executeQuery(getBuilder(true).append("select a.value, b.title_1, b.acct_no from ")
 							.append(XapiCodes.coreschema).append("..gb_user_defined a, ").append(XapiCodes.coreschema)
 							.append("..dp_acct b where a.field_id=45 and ")
-							.append(nuban ? "a.acct_no_key = '" : "b.acct_no = '").append(accountNo)
+							.append(nuban ? "a.value = '" : "b.acct_no = '").append(accountNo)
 							.append("' and b.acct_no = a.acct_no_key").toString())) {
 				if (rset.next()) {
 					accountMap.setAccountTitle(rset.getString(2));
@@ -341,7 +342,7 @@ public class TxnHandler implements AutoCloseable, ISO, SQL {
 			}
 			tran.setPsAcctNo2(transfer.getRecipient_account_no());
 
-			AccountMap fromAccount = accountName(transfer.getAccount_no(), true);
+			AccountMap fromAccount = accountName(transfer.getAccount_no());
 			if (fromAccount.getNubanAccount() == null) {
 				// no nuban account equivalent
 				response.put("responseCode", "58");
@@ -385,7 +386,7 @@ public class TxnHandler implements AutoCloseable, ISO, SQL {
 			AccountMap toAccount = null, fromAccount = null;
 
 			// transform the account from nuban to ordinary account
-			fromAccount = accountName(transfer.getAccount_no(), true);
+			fromAccount = accountName(transfer.getAccount_no());
 			if (fromAccount.getNubanAccount() == null) {
 				// no nuban account equivalent
 				response.put("responseCode", "58");
@@ -408,7 +409,7 @@ public class TxnHandler implements AutoCloseable, ISO, SQL {
 				}
 
 				// translate the to nuban account to local account
-				toAccount = accountName(transfer.getRecipient_account_no(), true);
+				toAccount = accountName(transfer.getRecipient_account_no());
 				if (toAccount.getNubanAccount() == null) {
 					// no nuban account equivalent
 					response.put("responseCode", "58");
@@ -503,10 +504,9 @@ public class TxnHandler implements AutoCloseable, ISO, SQL {
 		try (Statement stmt = conn.createStatement()) {
 
 			XapiTran tran = buildUtility(billRequest);
-
-			AccountMap fromAccount = accountName(billRequest.getAccount_no(), true);
+			AccountMap fromAccount = accountName(billRequest.getAccount_no());
 			if (fromAccount.getNubanAccount() == null) {
-				response.put("responseCode", "58");
+				response.put("responseCode", "71");
 				response.put("responseTxt", "Unable to locate nuban entry for account " + billRequest.getAccount_no());
 				return response;
 			}

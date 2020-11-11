@@ -3,6 +3,7 @@ package org.redlamp.ws;
 import org.redlamp.extras.AccountHandler;
 import org.redlamp.mdlwre.AccountMiddleware;
 import org.redlamp.model.AccountRequest;
+import org.redlamp.model.CustomerRequest;
 
 import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
@@ -16,6 +17,7 @@ import java.util.Map;
 public class AccountAPI {
 
     @GET
+    @Path("/loadAccountMetaData")
     @Produces(MediaType.APPLICATION_JSON)
     public Map<String, Object> loadAccountMetaData(@HeaderParam("authcode") String authcode,
                                                    @HeaderParam("authpass") String authpass) {
@@ -60,6 +62,7 @@ public class AccountAPI {
     }
 
     @POST
+    @Path("/createDepositAccount")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
     public Map<String, Object> createAccount(@HeaderParam("authcode") String authcode,
@@ -83,4 +86,28 @@ public class AccountAPI {
         return outcome;
     }
 
+    @POST
+    @Path("/verifyBvn")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Map<String, Object> verifyCustomerBvn(@HeaderParam("authcode") String authcode,
+                                             @HeaderParam("authpass") String authpass, final CustomerRequest request) {
+
+        Map<String, Object> outcome = new HashMap<>();
+        if (authcode == null) {
+            outcome.put("responseCode", 12);
+            outcome.put("responseTxt", "Missing authorization header code {authcode}");
+        } else if (authpass == null) {
+            outcome.put("responseCode", 12);
+            outcome.put("responseTxt", "Missing authorization header password {authpass}");
+        } else if (request == null) {
+            outcome.put("responseCode", 12);
+            outcome.put("responseTxt", "Invalid request data");
+        } else {
+            try (AccountHandler helper = new AccountHandler()) {
+                outcome = helper.getBVNDetail( request);
+            }
+        }
+        return outcome;
+    }
 }

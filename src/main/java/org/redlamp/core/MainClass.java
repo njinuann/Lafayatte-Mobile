@@ -32,7 +32,8 @@ import java.util.logging.Level;
 import java.util.logging.LogManager;
 import java.util.logging.Logger;
 
-public class MainClass {
+public class MainClass
+{
 
     public static final ExecutorService runner = Executors.newFixedThreadPool(5);
     public static IsoCast serviceUI;
@@ -43,12 +44,14 @@ public class MainClass {
             SybDriver sybDriver = (SybDriver) Class.forName("com.sybase.jdbc4.jdbc.SybDriver").newInstance();
             sybDriver.setVersion(com.sybase.jdbcx.SybDriver.VERSION_LATEST);
             DriverManager.registerDriver(sybDriver);
-        } catch (InstantiationException | IllegalAccessException | ClassNotFoundException | SQLException e1) {
+        }
+        catch (InstantiationException | IllegalAccessException | ClassNotFoundException | SQLException e1) {
             e1.printStackTrace();
         }
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args)
+    {
         for (String l : Collections.list(LogManager.getLogManager().getLoggerNames()))
             Logger.getLogger(l).setLevel(Level.OFF);
         MainClass mainClass = new MainClass();
@@ -57,7 +60,8 @@ public class MainClass {
         mainClass.startWebServer();
     }
 
-    public void startISOServer() {
+    public void startISOServer()
+    {
         Q2 server = new Q2();
         server.start();
         ISOUtil.sleep(5000);
@@ -65,23 +69,28 @@ public class MainClass {
         showUI();
     }
 
-    private void setLookAndFeel() {
+    private void setLookAndFeel()
+    {
         try {
             javax.swing.UIManager.setLookAndFeel(javax.swing.UIManager.getSystemLookAndFeelClassName());
-        } catch (ClassNotFoundException | InstantiationException | IllegalAccessException
+        }
+        catch (ClassNotFoundException | InstantiationException | IllegalAccessException
                 | javax.swing.UnsupportedLookAndFeelException ex) {
             ApiLogger.getLogger().error(ex);
         }
         serviceUI = new IsoCast();
-        java.awt.EventQueue.invokeLater(new Runnable() {
+        java.awt.EventQueue.invokeLater(new Runnable()
+        {
             @Override
-            public void run() {
+            public void run()
+            {
                 serviceUI.setVisible(true);
             }
         });
     }
 
-    private void showUI() {
+    private void showUI()
+    {
         ISOMeter ussdMeter = getIsoMeter("txnsvr");
         if (ussdMeter != null) {
             ussdMeter.setCaption("USSD");
@@ -90,23 +99,27 @@ public class MainClass {
         }
     }
 
-    public ISOMeter getIsoMeter(String serverName) {
+    public ISOMeter getIsoMeter(String serverName)
+    {
         try {
             Object obj = (Object) NameRegistrar.get("server." + serverName);
             if (obj instanceof ISOChannel) {
                 return new ISOChannelPanel((ISOChannel) obj, serverName).getISOMeter();
-            } else if (obj instanceof Observable) {
+            }
+            else if (obj instanceof Observable) {
                 ISOChannelPanel icp = new ISOChannelPanel(serverName);
                 ((Observable) obj).addObserver(icp);
                 return icp.getISOMeter();
             }
             return null;
-        } catch (NotFoundException ex) {
+        }
+        catch (NotFoundException ex) {
             return null;
         }
     }
 
-    public void startWebServer() {
+    public void startWebServer()
+    {
         try {
             Resource xmlConfigFile = Resource.newResource("conf/server.xml");
             XmlConfiguration configuration = new XmlConfiguration(xmlConfigFile.getInputStream());
@@ -134,7 +147,8 @@ public class MainClass {
 
             server.start();
             server.join();
-        } catch (Exception ex) {
+        }
+        catch (Exception ex) {
             ApiLogger.getLogger().error(ex);
         }
     }

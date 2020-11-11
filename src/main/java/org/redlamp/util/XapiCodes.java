@@ -34,6 +34,11 @@ public abstract class XapiCodes {
 	public static String NIBSS_WSDL;
 
 	public static String PHONE_PREFIX;
+	public static Long rimClassCode;
+	public static Long identityType;
+	public static Long marketingId;
+	public static Long defaultBranch;
+	public static Long depositClassCode;
 
 	public static String DEFAULT_USER;
 	public static boolean SEND_ALERT = false;

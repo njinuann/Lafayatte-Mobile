@@ -4,8 +4,10 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.redlamp.extras.AccountHandler;
+import org.redlamp.extras.CustomerHandler;
 import org.redlamp.interfaces.ISO;
 import org.redlamp.model.AccountRequest;
+import org.redlamp.model.CustomerRequest;
 import org.redlamp.model.NameInquiryRequest;
 import org.redlamp.util.XapiCodes;
 import org.redlamp.util.XapiPool;
