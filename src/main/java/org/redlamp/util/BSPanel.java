@@ -1,5 +1,7 @@
 package org.redlamp.util;
 
+
+import org.jpos.iso.gui.TierParamPanel;
 import org.redlamp.logger.ApiLogger;
 
 import java.awt.*;
@@ -69,9 +71,10 @@ public class BSPanel extends javax.swing.JPanel
         valueArea = new javax.swing.JTextArea();
         jScrollPane3 = new javax.swing.JScrollPane();
         descriptionArea = new javax.swing.JTextArea();
+        TierSetting = new javax.swing.JButton();
 
         settingsDialog.setTitle("Ruby Settings");
-        settingsDialog.setModal(true);
+       // settingsDialog.setModal(true);
         settingsDialog.setName("settingsDialog"); // NOI18N
 
         javax.swing.GroupLayout settingsDialogLayout = new javax.swing.GroupLayout(settingsDialog.getContentPane());
@@ -208,7 +211,14 @@ public class BSPanel extends javax.swing.JPanel
                                         .addComponent(modifiedByField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                                 .addContainerGap())
         );
-
+        TierSetting.setText("Tier Settings");
+        TierSetting.addActionListener(new java.awt.event.ActionListener()
+        {
+            public void actionPerformed(java.awt.event.ActionEvent evt)
+            {
+                TierSettingActionPerformed(evt);
+            }
+        });
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(this);
         this.setLayout(layout);
         layout.setHorizontalGroup(
@@ -225,7 +235,10 @@ public class BSPanel extends javax.swing.JPanel
                                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                                                 .addComponent(jSeparator2, javax.swing.GroupLayout.PREFERRED_SIZE, 2, javax.swing.GroupLayout.PREFERRED_SIZE)
                                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                                .addComponent(closeDialogButton, javax.swing.GroupLayout.PREFERRED_SIZE, 70, javax.swing.GroupLayout.PREFERRED_SIZE))
+                                                .addComponent(closeDialogButton, javax.swing.GroupLayout.PREFERRED_SIZE, 70, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                                .addComponent(jSeparator2, javax.swing.GroupLayout.PREFERRED_SIZE, 2, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                                .addComponent(TierSetting, javax.swing.GroupLayout.PREFERRED_SIZE, 80, javax.swing.GroupLayout.PREFERRED_SIZE))
                                         .addComponent(jSeparator1))
                                 .addContainerGap())
         );
@@ -246,10 +259,13 @@ public class BSPanel extends javax.swing.JPanel
                                                         .addGroup(layout.createSequentialGroup()
                                                                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
                                                                         .addComponent(jSeparator2, javax.swing.GroupLayout.Alignment.LEADING)
-                                                                        .addComponent(closeDialogButton, javax.swing.GroupLayout.Alignment.LEADING))
+                                                                        .addComponent(closeDialogButton, javax.swing.GroupLayout.Alignment.LEADING)
+                                                                        .addComponent(jSeparator2, javax.swing.GroupLayout.Alignment.LEADING)
+                                                                        .addComponent(TierSetting, javax.swing.GroupLayout.Alignment.LEADING))
                                                                 .addContainerGap())
                                                         .addGroup(layout.createSequentialGroup()
                                                                 .addComponent(saveSettingButton)
+                                                               // .addComponent(TierSetting)
                                                                 .addContainerGap())))))
         );
     }// </editor-fold>
@@ -263,18 +279,21 @@ public class BSPanel extends javax.swing.JPanel
     private void saveSettingButtonActionPerformed(java.awt.event.ActionEvent evt)
     {
         // TODO add your handling code here:
-        if (isSettingComplete()) {
+        if (isSettingComplete())
+        {
             boolean proceed = getSettings().containsKey(bRSetting.getCode())
                     ? (JOptionPane.YES_OPTION == JOptionPane.showConfirmDialog(settingsDialog, "Are you sure you want to save changes to this setting?", "Confirm Update", JOptionPane.YES_NO_OPTION))
                     : (JOptionPane.YES_OPTION == JOptionPane.showConfirmDialog(settingsDialog, "Are you sure you want to save this new setting?", "Confirm Save", JOptionPane.YES_NO_OPTION));
-            if (proceed) {
+            if (proceed)
+            {
                 bRSetting.setModule(MODULE);
                 bRSetting.setCode(codeField.getText());
                 bRSetting.setValue(valueArea.getText().equals(protect(bRSetting.getValue())) ? bRSetting.getValue() : valueArea.getText());
                 bRSetting.setDescription(descriptionArea.getText());
                 bRSetting.setDateModified(new Date());
                 bRSetting.setLastModifiedBy("system");
-                if (upsertSetting(bRSetting)) {
+                if (upsertSetting(bRSetting))
+                {
                     setSettingTree();
                     querySettings();
 //                    switch (MODULE) {
@@ -286,7 +305,8 @@ public class BSPanel extends javax.swing.JPanel
 //                    }
                     JOptionPane.showMessageDialog(settingsDialog, "Setting saved successfully.");
                 }
-                else {
+                else
+                {
                     JOptionPane.showMessageDialog(settingsDialog, "Unable to save setting!", "Saving Error", JOptionPane.ERROR_MESSAGE);
                 }
             }
@@ -315,6 +335,11 @@ public class BSPanel extends javax.swing.JPanel
         settingsDialog.setVisible(false);
     }
 
+    private void TierSettingActionPerformed(java.awt.event.ActionEvent evt)
+    {
+        tierParamPanel.showTierDialog();
+    }
+
     public void setSettingTree()
     {
         setSettings(querySettings());
@@ -326,7 +351,8 @@ public class BSPanel extends javax.swing.JPanel
         Object[] codes = getSettings().keySet().toArray();
         Arrays.sort(codes);
 
-        for (Object code : codes) {
+        for (Object code : codes)
+        {
             rootNode.add(new DefaultMutableTreeNode(getSettings().get(code)));
         }
 
@@ -350,11 +376,14 @@ public class BSPanel extends javax.swing.JPanel
     public void updateDisplay()
     {
         DefaultMutableTreeNode settingNode = (DefaultMutableTreeNode) settingTree.getLastSelectedPathComponent();
-        if (settingNode != null) {
-            if (settingNode.getUserObject() instanceof BRSetting) {
+        if (settingNode != null)
+        {
+            if (settingNode.getUserObject() instanceof BRSetting)
+            {
                 displaySetting((BRSetting) settingNode.getUserObject());
             }
-            else {
+            else
+            {
                 getNewSetting();
             }
         }
@@ -379,12 +408,14 @@ public class BSPanel extends javax.swing.JPanel
 
     public String protectField(String fieldValue, int preSkip, int postSkip)
     {
-        try {
-            for (int i = preSkip; i < fieldValue.length() - postSkip; i++) {
+        try
+        {
+            for (int i = preSkip; i < fieldValue.length() - postSkip; i++)
+            {
                 fieldValue = fieldValue.substring(0, i) + "X" + fieldValue.substring(i + 1);
             }
-        }
-        catch (Exception ex) {
+        } catch (Exception ex)
+        {
             ex = null;
         }
         return fieldValue;
@@ -392,15 +423,18 @@ public class BSPanel extends javax.swing.JPanel
 
     private boolean isSettingComplete()
     {
-        if ("".equals(codeField.getText().trim())) {
+        if ("".equals(codeField.getText().trim()))
+        {
             JOptionPane.showMessageDialog(settingsDialog, "Please set setting code!", "Missing Field", JOptionPane.ERROR_MESSAGE);
             return false;
         }
-        if ("".equals(valueArea.getText().trim())) {
+        if ("".equals(valueArea.getText().trim()))
+        {
             JOptionPane.showMessageDialog(settingsDialog, "Please set setting value!", "Missing Field", JOptionPane.ERROR_MESSAGE);
             return false;
         }
-        if ("".equals(descriptionArea.getText().trim())) {
+        if ("".equals(descriptionArea.getText().trim()))
+        {
             JOptionPane.showMessageDialog(settingsDialog, "Please set setting description!", "Missing Field", JOptionPane.ERROR_MESSAGE);
             return false;
         }
@@ -425,18 +459,22 @@ public class BSPanel extends javax.swing.JPanel
 
     public HashMap<String, BRSetting> querySettings()
     {
-        if(conn==null){
-            try {
+        if (conn == null)
+        {
+            try
+            {
                 conn = XapiPool.getConnection();
-            }
-            catch (SQLException ex) {
+            } catch (SQLException ex)
+            {
                 ApiLogger.getLogger().error(ex);
             }
         }
         HashMap<String, BRSetting> bRSettings = new HashMap<>();
         try (Statement statement = conn.createStatement();
-             ResultSet rs = statement.executeQuery("SELECT CODE, VALUE, MODULE, DESCRIPTION, MODIFIED_BY, DATE_MODIFIED FROM xapi..EI_SETTING  ORDER BY CODE ASC")) {
-            while (rs.next()) {
+             ResultSet rs = statement.executeQuery("SELECT CODE, VALUE, MODULE, DESCRIPTION, MODIFIED_BY, DATE_MODIFIED FROM xapi..EI_SETTING  ORDER BY CODE ASC"))
+        {
+            while (rs.next())
+            {
                 BRSetting bRSetting = new BRSetting();
                 bRSetting.setCode(rs.getString("CODE"));
                 bRSetting.setEncrypted(false);
@@ -447,8 +485,8 @@ public class BSPanel extends javax.swing.JPanel
                 bRSetting.setDateModified(rs.getDate("DATE_MODIFIED"));
                 bRSettings.put(bRSetting.getCode(), bRSetting);
             }
-        }
-        catch (Exception ex) {
+        } catch (Exception ex)
+        {
             ApiLogger.getLogger().error(ex);
         }
         return bRSettings;
@@ -468,35 +506,42 @@ public class BSPanel extends javax.swing.JPanel
 
     public boolean updateSetting(BRSetting bRSetting)
     {
-        return executeUpdate("UPDATE xapi..EI_SETTING SET VALUE='" + bRSetting.getValue() + "', DESCRIPTION='" + bRSetting.getDescription() + "', MODIFIED_BY='" + bRSetting.getLastModifiedBy() + "', DATE_MODIFIED=SYSDATE WHERE CODE='" + bRSetting.getCode() + "' AND MODULE='" + bRSetting.getModule() + "'", true);
+        return executeUpdate("UPDATE xapi..EI_SETTING SET VALUE='" + bRSetting.getValue() + "', DESCRIPTION='" + bRSetting.getDescription() + "', MODIFIED_BY='" + bRSetting.getLastModifiedBy() + "', DATE_MODIFIED=getdate() WHERE CODE='" + bRSetting.getCode() + "' AND MODULE='" + bRSetting.getModule() + "'", true);
     }
 
     public boolean executeUpdate(String update, boolean retry)
     {
-        if(conn==null){
-            try {
+        if (conn == null)
+        {
+            try
+            {
                 conn = XapiPool.getConnection();
-            }
-            catch (SQLException ex) {
+            } catch (SQLException ex)
+            {
                 ApiLogger.getLogger().error(ex);
             }
         }
-        try {
+        try
+        {
 
             update = update.replaceAll("'null'", "NULL").replaceAll("'NULL'", "NULL");
-            try (Statement statement = conn.createStatement()) {
+            try (Statement statement = conn.createStatement())
+            {
                 statement.executeUpdate(update);
             }
             return true;
-        }
-        catch (Exception ex) {
-            if (String.valueOf(ex.getMessage()).contains("ORA-01000")) {
+        } catch (Exception ex)
+        {
+            if (String.valueOf(ex.getMessage()).contains("ORA-01000"))
+            {
                 dispose();
-                if (retry) {
+                if (retry)
+                {
                     return executeUpdate(update, false);
                 }
             }
-            else {
+            else
+            {
                 ApiLogger.getLogger().info(update);
                 ApiLogger.getLogger().error(ex);
                 ;
@@ -507,38 +552,44 @@ public class BSPanel extends javax.swing.JPanel
 
     public void dispose()
     {
-        try {
-            if (conn != null) {
+        try
+        {
+            if (conn != null)
+            {
                 conn.close();
             }
-        }
-        catch (Exception ex) {
+        } catch (Exception ex)
+        {
             ex = null;
         }
     }
 
     public boolean recordExists(String query)
     {
-        if(conn==null){
-            try {
+        if (conn == null)
+        {
+            try
+            {
                 conn = XapiPool.getConnection();
-            }
-            catch (SQLException ex) {
+            } catch (SQLException ex)
+            {
                 ApiLogger.getLogger().error(ex);
             }
         }
         boolean exists = false;
         try (Statement statement = conn.createStatement();
-             ResultSet rs = statement.executeQuery(query)) {
+             ResultSet rs = statement.executeQuery(query))
+        {
             exists = rs.next();
-        }
-        catch (Exception ex) {
+        } catch (Exception ex)
+        {
             ApiLogger.getLogger().error(ex);
         }
         return exists;
     }
 
     // Variables declaration - do not modify
+    private javax.swing.JButton TierSetting;
     private javax.swing.JButton closeDialogButton;
     private javax.swing.JTextField codeField;
     private javax.swing.JTextArea descriptionArea;
@@ -560,7 +611,7 @@ public class BSPanel extends javax.swing.JPanel
     public javax.swing.JDialog settingsDialog;
     private javax.swing.JTextArea valueArea;
     // End of variables declaration
-
+    private final TierParamPanel tierParamPanel = new TierParamPanel();
     /**
      * @return the settings
      */

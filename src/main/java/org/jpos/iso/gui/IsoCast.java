@@ -192,22 +192,7 @@ public class IsoCast extends javax.swing.JFrame
         jMenu3.add(licenseMenu);
 
         jMenuBar1.add(jMenu3);
-//
-//        settingMenu.setText("settings");
-//
-//        settingMenu.setText("Setting");
-//
-//        settingMenuItem.setText("settings");
-//        settingMenuItem.addActionListener(new java.awt.event.ActionListener()
-//        {
-//            public void actionPerformed(java.awt.event.ActionEvent evt)
-//            {
-//                settingMenuItemActionPerformed(evt);
-//            }
-//        });
-//        settingMenu.add(settingMenuItem);
-//
-//        jMenuBar1.add(settingMenu);
+
 
         setJMenuBar(jMenuBar1);
 
@@ -283,7 +268,7 @@ private void settingsActionPerformed(ActionEvent evt)
 {
     if (JOptionPane.showConfirmDialog(this, "This action will only open the Settins. Do you want to continue?",
             "Confirm Action", JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION) {
-        BSPanel bsPanel = new BSPanel("USSD");
+        BSPanel bsPanel = new BSPanel("Mobile");
         bsPanel.showSettingsDialog();
     }
 }

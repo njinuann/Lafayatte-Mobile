@@ -13,23 +13,26 @@ import org.redlamp.util.XapiCodes;
 
 @Provider
 @Produces("application/json")
-public class DateProvider implements ContextResolver<ObjectMapper> {
+public class DateProvider implements ContextResolver<ObjectMapper>
+{
 
-	private ObjectMapper mapper = new ObjectMapper();
+    private ObjectMapper mapper = new ObjectMapper();
 
-	@SuppressWarnings("deprecation")
-	public DateProvider() {
-		SerializationConfig serConfig = mapper.getSerializationConfig();
-		serConfig.setDateFormat(new SimpleDateFormat(XapiCodes.DATE_FORMAT));
-		DeserializationConfig deserializationConfig = mapper.getDeserializationConfig();
-		deserializationConfig.setDateFormat(new SimpleDateFormat("MM/dd/yyyy"));
-		mapper.configure(SerializationConfig.Feature.WRITE_DATES_AS_TIMESTAMPS, false);
-		mapper.configure(SerializationConfig.Feature.FAIL_ON_EMPTY_BEANS, false);
-	}
+    @SuppressWarnings("deprecation")
+    public DateProvider()
+    {
+        SerializationConfig serConfig = mapper.getSerializationConfig();
+        serConfig.setDateFormat(new SimpleDateFormat(XapiCodes.DATE_FORMAT));
+        DeserializationConfig deserializationConfig = mapper.getDeserializationConfig();
+        deserializationConfig.setDateFormat(new SimpleDateFormat("MM/dd/yyyy"));
+        mapper.configure(SerializationConfig.Feature.WRITE_DATES_AS_TIMESTAMPS, false);
+        mapper.configure(SerializationConfig.Feature.FAIL_ON_EMPTY_BEANS, false);
+    }
 
-	@Override
-	public ObjectMapper getContext(Class<?> arg0) {
-		return mapper;
-	}
+    @Override
+    public ObjectMapper getContext(Class<?> arg0)
+    {
+        return mapper;
+    }
 
 }

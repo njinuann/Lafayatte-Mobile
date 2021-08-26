@@ -298,14 +298,16 @@ public class TxnHandler implements AutoCloseable, ISO, SQL {
 	public AccountMap accountName(String accountNo) {
 		AccountMap accountMap = new AccountMap();
 		boolean nuban = !accountNo.contains("-");
+		System.out.println("get account \n\t select a.value, b.title_1, b.acct_no "
+				+ "from  " + XapiCodes.coreschema + "..gb_user_defined a,  " + XapiCodes.coreschema + "..dp_acct b "
+				+ "where a.field_id=45 and   (a.acct_no_key = '" + accountNo.substring(0, 3) + "-" + accountNo.substring(3) + "' or value = '" + accountNo.replace("-", "") + "') "
+				+ "and b.acct_no = a.acct_no_key ");
 		try (Statement stmt = conn.createStatement()) {
 
-			try (ResultSet rset = stmt
-					.executeQuery(getBuilder(true).append("select a.value, b.title_1, b.acct_no from ")
-							.append(XapiCodes.coreschema).append("..gb_user_defined a, ").append(XapiCodes.coreschema)
-							.append("..dp_acct b where a.field_id=45 and ")
-							.append(nuban ? "a.value = '" : "b.acct_no = '").append(accountNo)
-							.append("' and b.acct_no = a.acct_no_key").toString())) {
+			try (ResultSet rset = stmt.executeQuery("select a.value, b.title_1, b.acct_no "
+					+ "from  " + XapiCodes.coreschema + "..gb_user_defined a,  " + XapiCodes.coreschema + "..dp_acct b "
+					+ "where a.field_id=45 and   (a.acct_no_key = '" + accountNo.substring(0, 3) + "-" + accountNo.substring(3) + "' or value = '" + accountNo.replace("-", "") + "') "
+					+ "and b.acct_no = a.acct_no_key ")) {
 				if (rset.next()) {
 					accountMap.setAccountTitle(rset.getString(2));
 					accountMap.setLocalAccount(rset.getString(3));
@@ -350,7 +352,8 @@ public class TxnHandler implements AutoCloseable, ISO, SQL {
 						"Unable to locate corresponding source nuban account for " + transfer.getAccount_no());
 				return response;
 			}
-			tran.setPsAcctNo1(fromAccount.getLocalAccount());
+		//	tran.setPsAcctNo1(fromAccount.getLocalAccount());
+			tran.setPsAcctNo1(fromAccount.getNubanAccount());
 
 			tran.setPsDescription(String.format("FROM %s TO %s/%s", fromAccount.getAccountTitle(),
 					transfer.getRecipient_account_name(), transfer.getDescription()));

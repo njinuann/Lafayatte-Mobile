@@ -42,6 +42,7 @@ dependencies {
     implementation group: 'org.javassist', name: 'javassist', version: '3.21.0-GA'
     // https://mvnrepository.com/artifact/org.eclipse.jetty/jetty-jndi
     implementation group: 'org.eclipse.jetty', name: 'jetty-jndi', version: '9.4.17.v20190418'
+
 }
 
 task copyToLib(type: Copy) {

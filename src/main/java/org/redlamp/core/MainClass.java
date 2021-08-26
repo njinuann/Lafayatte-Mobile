@@ -19,6 +19,7 @@ import org.jpos.util.NameRegistrar.NotFoundException;
 import org.redlamp.beans.ResourceBean;
 import org.redlamp.logger.ApiLogger;
 import org.redlamp.logger.IsoLogger;
+import org.redlamp.util.BSPanel;
 
 import java.lang.management.ManagementFactory;
 import java.sql.DriverManager;
@@ -128,8 +129,7 @@ public class MainClass
             server.setRequestLog(new ApiLogger());
             context.setContextPath("/");
             server.setHandler(context);
-            ServletHolder jerseyServlet = context
-                    .addServlet(com.sun.jersey.spi.container.servlet.ServletContainer.class, "/advanslite/*");
+            ServletHolder jerseyServlet = context.addServlet(com.sun.jersey.spi.container.servlet.ServletContainer.class, "/advanslite/*");
             jerseyServlet.setInitOrder(1);
             jerseyServlet.setInitParameter("com.sun.jersey.config.property.packages", "org.redlamp.ws");
             jerseyServlet.setInitParameter("com.sun.jersey.api.json.POJOMappingFeature", "true");

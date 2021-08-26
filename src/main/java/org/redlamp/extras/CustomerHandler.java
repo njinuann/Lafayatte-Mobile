@@ -1,6 +1,7 @@
 package org.redlamp.extras;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.sql.*;
 import java.sql.Date;
 import java.text.SimpleDateFormat;
@@ -25,10 +26,11 @@ public class CustomerHandler implements AutoCloseable, ISO, SQL
 
     public CustomerHandler()
     {
-        try {
+        try
+        {
             conn = XapiPool.getConnection();
-        }
-        catch (SQLException ex) {
+        } catch (SQLException ex)
+        {
             ApiLogger.getLogger().error(ex);
         }
     }
@@ -36,11 +38,12 @@ public class CustomerHandler implements AutoCloseable, ISO, SQL
     @Override
     public void close()
     {
-        try {
+        try
+        {
             if (conn != null)
                 conn.close();
-        }
-        catch (SQLException e) {
+        } catch (SQLException e)
+        {
             ApiLogger.getLogger().error(e);
         }
     }
@@ -50,25 +53,31 @@ public class CustomerHandler implements AutoCloseable, ISO, SQL
         Map<String, Object> response = new HashMap<String, Object>();
 
         try (CallableStatement init = conn.prepareCall(INIT_SERVICE_REGISTRATION);
-             CallableStatement complete = conn.prepareCall(COMPLETE_SERVICE_REGISTRATION)) {
+             CallableStatement complete = conn.prepareCall(COMPLETE_SERVICE_REGISTRATION))
+        {
 
             String formatted_acct = StringUtils.appendDash(acct_no);
             init.setString(1, formatted_acct);
 
-            try (ResultSet rset = init.executeQuery()) {
+            try (ResultSet rset = init.executeQuery())
+            {
 
-                if (rset != null && rset.isBeforeFirst()) {
+                if (rset != null && rset.isBeforeFirst())
+                {
                     String primary_phone = null;
                     List<Map<String, String>> account_list = new ArrayList<>();
                     int service_status = 0;
-                    while (rset.next()) {
+                    while (rset.next())
+                    {
                         service_status = rset.getInt("service_status");
-                        if (service_status != 70 && rset.getInt("relation_status") > 0) {
+                        if (service_status != 70 && rset.getInt("relation_status") > 0)
+                        {
                             // has another signatory
                             response.put("responseCode", MULTIPLE_SIGNATORIES);
                             return response;
                         }
-                        if (service_status == 50) {
+                        if (service_status == 50)
+                        {
                             // only savings and or current permitted to register.
                             response.put("responseCode", ACCOUNT_NOT_PERMITTED);
                             return response;
@@ -76,7 +85,8 @@ public class CustomerHandler implements AutoCloseable, ISO, SQL
 
                         String phone = StringUtils.formatPhone(rset.getString("phone_no"));
                         String account = rset.getString("acct_no").trim();
-                        if (formatted_acct.equalsIgnoreCase(account)) {
+                        if (formatted_acct.equalsIgnoreCase(account))
+                        {
                             primary_phone = phone;
                         }
 
@@ -95,14 +105,16 @@ public class CustomerHandler implements AutoCloseable, ISO, SQL
                         account_list.add(data);
                     }
 
-                    if (service_status == 70) {
+                    if (service_status == 70)
+                    {
                         // already registered. simply give the user their details
                         response.put("account_details", account_list);
                         response.put("responseCode", XAPI_APPROVED);
                     }
 
-                    phone_1 = StringUtils.formatPhone(phone_1);
-                    if (primary_phone != null) {
+                    primary_phone = StringUtils.formatPhone(phone_1);
+                    if (primary_phone != null)
+                    {
                         // attempt to register the service..
                         complete.registerOutParameter(1, Types.INTEGER);
                         complete.setInt(2, SQL.MOBILE_SERVICE);
@@ -111,33 +123,37 @@ public class CustomerHandler implements AutoCloseable, ISO, SQL
                         complete.setString(5, primary_phone);
                         complete.execute();
                         int returnout = -99;
-                        try (ResultSet service = complete.getResultSet()) {
+                        try (ResultSet service = complete.getResultSet())
+                        {
                             returnout = service != null && service.isBeforeFirst() && service.next() ? service.getInt(1)
                                     : complete.getInt(1);
                         }
-                        if (returnout == 70 || returnout == 0) {
+                        if (returnout == 70 || returnout == 0)
+                        {
                             // now they can have details
                             response.put("account_details", account_list);
                             response.put("responseCode", XAPI_APPROVED);
                         }
-                        else {
+                        else
+                        {
                             response.put("responseCode", ErrorHandler.mapCode(returnout));
                         }
                     }
                     else
                         response.put("responseCode", UNABLE_TO_LOCATE_RECORD);
                 }
-                else {
+                else
+                {
                     // no service attached
                     response.put("responseCode", NO_ACTION_TAKEN);
                 }
-            }
-            catch (SQLException ex) {
+            } catch (SQLException ex)
+            {
                 ApiLogger.getLogger().error(ex);
                 response.put("responseCode", SYSTEM_ERROR);
             }
-        }
-        catch (SQLException ex) {
+        } catch (SQLException ex)
+        {
             ApiLogger.getLogger().error(ex);
             response.put("responseCode", SYSTEM_ERROR);
         }
@@ -151,60 +167,127 @@ public class CustomerHandler implements AutoCloseable, ISO, SQL
         c.add(Calendar.YEAR, 1);
         java.util.Date newDate = c.getTime();
         Map<String, Object> response = new HashMap<String, Object>();
+        StringBuilder stateBuilder = new StringBuilder();
 
-        try (CallableStatement callableStatement = conn.prepareCall(SQL.CUSTOMER_CREATION)) {
+        try (CallableStatement callableStatement = conn.prepareCall(SQL.CUSTOMER_CREATION))
+        {
 
+
+            stateBuilder.append("'").append(customerRequest.getFirst_name()).append("', ");
             callableStatement.setString(1, customerRequest.getFirst_name());
+
+            stateBuilder.append("'").append(customerRequest.getLast_name()).append("', ");
             callableStatement.setString(2, customerRequest.getLast_name());
+
+            stateBuilder.append("'").append(customerRequest.getBirth_date()).append("', ");
             callableStatement.setDate(3, Date.valueOf(customerRequest.getBirth_date()));
+
+            stateBuilder.append("'").append(customerRequest.getAddress_1()).append("', ");
             callableStatement.setString(4, customerRequest.getAddress_1());
+
+            stateBuilder.append("'").append(customerRequest.getAddress_2()).append("', ");
             callableStatement.setString(5, customerRequest.getAddress_1());
+
+            stateBuilder.append("'").append(customerRequest.getAddress_3()).append("', ");
             callableStatement.setString(6, customerRequest.getAddress_1());
+
+            stateBuilder.append("'").append(customerRequest.getCity()).append("', ");
             callableStatement.setString(7, customerRequest.getCity());//customerRequest.getTown()
+
+            stateBuilder.append("'").append(customerRequest.getCity()).append("', ");
             callableStatement.setString(8, customerRequest.getCity());//customerRequest.getDistrict()
+
+            stateBuilder.append("'").append("Other").append("', ");
             callableStatement.setString(9, "Other");//customerRequest.getResidence()
+
+            stateBuilder.append("'").append(customerRequest.getState()).append("', ");
             callableStatement.setString(10, customerRequest.getState());// customerRequest.getCounty()
+
+            stateBuilder.append("'").append(customerRequest.getCity()).append("', ");
             callableStatement.setString(11, customerRequest.getCity());
+
+            stateBuilder.append("'").append(customerRequest.getPhone_number()).append("', ");
             callableStatement.setString(12, customerRequest.getPhone_number());
+
+            stateBuilder.append("'").append(customerRequest.getGender()).append("', ");
             callableStatement.setString(13, customerRequest.getGender());
-            callableStatement.setLong(14, XapiCodes.rimClassCode);//customerRequest.getClass_code()
+
+            stateBuilder.append(XapiCodes.rimClassCode).append(", ");
+            callableStatement.setLong(14, XapiCodes.defaultRimClass);//customerRequest.getClass_code()
+
+            stateBuilder.append(XapiPool.userId).append(", ");
             callableStatement.setString(15, XapiPool.userId);
+
+            stateBuilder.append(XapiCodes.identityType).append(", ");
             callableStatement.setLong(16, XapiCodes.identityType);//customerRequest.getIdentity_type_id()
+
+            stateBuilder.append("'").append(customerRequest.getPhone_number()).append("', ");
             callableStatement.setString(17, customerRequest.getPhone_number()); //customerRequest.getIdentity_no()
+
+            stateBuilder.append("'").append(Date.valueOf(new SimpleDateFormat("yyyy-MM-dd").format(new java.util.Date()))).append("', ");
             callableStatement.setDate(18, Date.valueOf(new SimpleDateFormat("yyyy-MM-dd").format(new java.util.Date())));//customerRequest.getId_expiry_date()
+
+            stateBuilder.append("'").append(Date.valueOf(new SimpleDateFormat("yyyy-MM-dd").format(new java.util.Date()))).append("', ");
             callableStatement.setDate(19, Date.valueOf(new SimpleDateFormat("yyyy-MM-dd").format(new java.util.Date())));//customerRequest.getId_issue_date()
+
+            stateBuilder.append(XapiCodes.marketingId).append(", ");
             callableStatement.setLong(20, XapiCodes.marketingId);//customerRequest.getMarketing_info_id()
+
+            stateBuilder.append("'").append("''").append(", ");
             callableStatement.setString(21, "");//zip code
+
+            stateBuilder.append("'").append("''").append(", ");
             callableStatement.setString(22, "");//email
+
+            stateBuilder.append("'").append(customerRequest.getFirst_name() + " " + customerRequest.getLast_name()).append("', ");
             callableStatement.setString(23, customerRequest.getFirst_name() + " " + customerRequest.getLast_name());//suffix
+
+            stateBuilder.append("'").append(customerRequest.getMiddle_name()).append("', ");
             callableStatement.setString(24, customerRequest.getMiddle_name());//middle name
-            callableStatement.setLong(25, XapiCodes.defaultBranch);//branch number 110
+
+            stateBuilder.append(XapiCodes.defaultBranch).append(", ");
+            callableStatement.setLong(25, XapiCodes.defaultBranch);//branch number 120
+
+            stateBuilder.append(Types.NUMERIC).append(", ");
             callableStatement.registerOutParameter(26, Types.NUMERIC);
+
+            stateBuilder.append(Types.INTEGER).append(", ");
             callableStatement.registerOutParameter(27, Types.INTEGER);
 
             int returnCode = -1;
             BigDecimal rimNumber = new BigDecimal(0);
 
-            try (ResultSet rset = callableStatement.executeQuery()) {
-                if (rset != null && rset.isBeforeFirst()) {
-                    ResultSetMetaData meta = rset.getMetaData();
-                    while (rset.next()) {
-                        returnCode = rset.getInt(1);
-                        rimNumber = rset.getBigDecimal(2);
-                    }
-                }
-            }
+            ApiLogger.getLogger().debug(stateBuilder);
+//            try (ResultSet rset = callableStatement.executeQuery()) {
+//                if (rset != null && rset.isBeforeFirst()) {
+//                    ResultSetMetaData meta = rset.getMetaData();
+//                    while (rset.next()) {
+//                        returnCode = rset.getInt(1);
+//                        rimNumber = rset.getBigDecimal(2);
+//                    }
+//                }
+//            }
+            callableStatement.execute();
+            System.out.println("output Account = " + callableStatement.getObject(26));
+            System.out.println("output Ret Code  = " + callableStatement.getObject(27));
+            rimNumber = callableStatement.getBigDecimal(26).setScale(0, RoundingMode.DOWN).stripTrailingZeros();
+            returnCode = callableStatement.getInt(27);
 
+            ApiLogger.getLogger().debug("ReturnCode " + returnCode);
+            ApiLogger.getLogger().debug("rimNumber " + rimNumber);
             // Oops, failed to create the account
-            if (returnCode != 0) {
+            if (returnCode != 0)
+            {
                 response.put("responseCode", returnCode);
                 return response;
             }
 
-            if (insertAdditionalField(customerRequest.getBank_verification_number(), 44, rimNumber.toPlainString(), XapiPool.userId, "RM")) {
+            if (insertAdditionalField(customerRequest.getBank_verification_number(), 44, rimNumber.setScale(0, RoundingMode.DOWN).stripTrailingZeros().toPlainString(), XapiPool.userId, "RM"))
+            {
                 ApiLogger.getLogger().info("BVN inserted");
             }
-            else {
+            else
+            {
                 ApiLogger.getLogger().info("BVN not inserted");
             }
             // get the newly created customer rim
@@ -214,25 +297,28 @@ public class CustomerHandler implements AutoCloseable, ISO, SQL
                          new StringBuilder().append("select status, rim_no, " +
                                  "(select a.value from " + XapiCodes.coreschema + "..gb_user_defined a, " + XapiCodes.coreschema + "..rm_acct b  " +
                                  " where cast(b.rim_no as varchar(15)) = a.acct_no_key and acct_prefix='RM' and field_id =44 and b.rim_no =" + rimNumber + ") as bvn    " +
-                                 " from " + XapiCodes.coreschema + "..rm_acct where rim_no = " + rimNumber + "").toString())) {
+                                 " from " + XapiCodes.coreschema + "..rm_acct where rim_no = " + rimNumber + "").toString()))
+            {
 
                 Map<String, Object> asMap = asMap(resultSet);
-                if (rimNumber != null) {
+                if (rimNumber != null)
+                {
                     response.put("responseCode", XAPI_APPROVED);
                     response.put("cust_info", asMap);
                 }
-                else {
+                else
+                {
                     response.put("responseCode", UNABLE_TO_LOCATE_RECORD);
                 }
 
-            }
-            catch (Exception e1) {
+            } catch (Exception e1)
+            {
                 ApiLogger.getLogger().error(e1);
             }
 
 
-        }
-        catch (SQLException ex) {
+        } catch (SQLException ex)
+        {
             ApiLogger.getLogger().error(ex);
         }
         return response;
@@ -247,7 +333,8 @@ public class CustomerHandler implements AutoCloseable, ISO, SQL
         StringBuilder stateBuilder = new StringBuilder();
         Map<String, Object> response = new HashMap<String, Object>();
 
-        try (CallableStatement callableStatement = conn.prepareCall(SQL.CUST_AND_DEP_CREATION)) {
+        try (CallableStatement callableStatement = conn.prepareCall(SQL.CUST_AND_DEP_CREATION))
+        {
 
             stateBuilder.append("'").append(customerRequest.getFirst_name()).append("', ");
             callableStatement.setString(1, customerRequest.getFirst_name());
@@ -276,7 +363,7 @@ public class CustomerHandler implements AutoCloseable, ISO, SQL
             stateBuilder.append("'").append(customerRequest.getGender()).append("', ");
             callableStatement.setString(13, customerRequest.getGender());
             stateBuilder.append(XapiCodes.rimClassCode).append(", ");
-            callableStatement.setLong(14, XapiCodes.rimClassCode);//customerRequest.getClass_code()
+            callableStatement.setLong(14, XapiCodes.defaultRimClass);//customerRequest.getClass_code()
             stateBuilder.append("'").append(XapiPool.userId).append("', ");
             callableStatement.setString(15, XapiPool.userId);
             stateBuilder.append(XapiCodes.identityType).append(", ");
@@ -312,25 +399,37 @@ public class CustomerHandler implements AutoCloseable, ISO, SQL
             BigDecimal rimNumber = new BigDecimal(0);
             ApiLogger.getLogger().info(stateBuilder);
 
-            try (ResultSet rset = callableStatement.executeQuery()) {
-                if (rset != null && rset.isBeforeFirst()) {
-                    ResultSetMetaData meta = rset.getMetaData();
-                    while (rset.next()) {
-                        returnCode = rset.getInt(1);
-                        rimNumber = rset.getBigDecimal(2);
-                    }
-                }
-            }
+//            try (ResultSet rset = callableStatement.executeQuery())
+//            {
+//                if (rset != null && rset.isBeforeFirst())
+//                {
+//                    ResultSetMetaData meta = rset.getMetaData();
+//                    while (rset.next())
+//                    {
+//                        returnCode = rset.getInt(1);
+//                        rimNumber = rset.getBigDecimal(2);
+//                    }
+//                }
+//            }
+            callableStatement.execute();
+            System.out.println("output RIM = " + callableStatement.getObject(27));
+            System.out.println("output Acct = " + callableStatement.getObject(28));
+            System.out.println("output Ret Code  = " + callableStatement.getObject(29));
+            rimNumber = callableStatement.getBigDecimal(27).setScale(0, RoundingMode.DOWN).stripTrailingZeros();
+            returnCode = callableStatement.getInt(29);
 
             // Oops, failed to create the account
-            if (returnCode != 0) {
+            if (returnCode != 0)
+            {
                 response.put("responseCode", returnCode);
                 return response;
             }
-            if (insertAdditionalField(customerRequest.getBank_verification_number(), 44, rimNumber.toPlainString(), XapiPool.userId, "RM")) {
+            if (insertAdditionalField(customerRequest.getBank_verification_number(), 44, rimNumber.toPlainString(), XapiPool.userId, "RM"))
+            {
                 ApiLogger.getLogger().info("BVN inserted");
             }
-            else {
+            else
+            {
                 ApiLogger.getLogger().info("BVN not inserted");
             }
             // get the newly created customer rim
@@ -342,26 +441,28 @@ public class CustomerHandler implements AutoCloseable, ISO, SQL
                                  " where cast(b.rim_no as varchar(15)) = a.acct_no_key and acct_prefix='RM' and field_id =44 and b.rim_no =" + rimNumber + ") as bvn from ").append(XapiCodes.coreschema)
                                  .append("..gb_user_defined a, ").append(XapiCodes.coreschema)
                                  .append("..dp_acct b where a.field_id=45 and b.rim_no = ").append(rimNumber)
-                                 .append(" and b.acct_no = a.acct_no_key").toString())) {
+                                 .append(" and b.acct_no = a.acct_no_key").toString()))
+            {
 
                 Map<String, Object> asMap = asMap(resultSet);
-                if (rimNumber != null) {
+                if (rimNumber != null)
+                {
                     response.put("responseCode", XAPI_APPROVED);
                     response.put("cust_info", asMap);
                 }
-                else {
+                else
+                {
                     response.put("responseCode", UNABLE_TO_LOCATE_RECORD);
                 }
 
-            }
-            catch (Exception e1) {
+            } catch (Exception e1)
+            {
                 ApiLogger.getLogger().error(e1);
             }
 
 
-
-        }
-        catch (SQLException ex) {
+        } catch (SQLException ex)
+        {
             ApiLogger.getLogger().error(ex);
         }
         return response;
@@ -377,16 +478,19 @@ public class CustomerHandler implements AutoCloseable, ISO, SQL
     Map<String, Object> asMap(ResultSet resultSet)
     {
         Map<String, Object> map = new HashMap<String, Object>();
-        try {
-            if (resultSet != null && resultSet.isBeforeFirst()) {
+        try
+        {
+            if (resultSet != null && resultSet.isBeforeFirst())
+            {
                 ResultSetMetaData metaData = resultSet.getMetaData();
-                if (resultSet.next()) {
+                if (resultSet.next())
+                {
                     for (int i = 1; i <= metaData.getColumnCount(); i++)
                         map.put(metaData.getColumnName(i), resultSet.getObject(i));
                 }
             }
-        }
-        catch (SQLException e) {
+        } catch (SQLException e)
+        {
             ApiLogger.getLogger().error(e);
         }
         return map;
@@ -395,18 +499,21 @@ public class CustomerHandler implements AutoCloseable, ISO, SQL
     List<Map<String, Object>> asListMap(ResultSet resultSet)
     {
         List<Map<String, Object>> list = new ArrayList<Map<String, Object>>();
-        try {
-            if (resultSet != null && resultSet.isBeforeFirst()) {
+        try
+        {
+            if (resultSet != null && resultSet.isBeforeFirst())
+            {
                 ResultSetMetaData metaData = resultSet.getMetaData();
-                while (resultSet.next()) {
+                while (resultSet.next())
+                {
                     Map<String, Object> map = new HashMap<String, Object>();
                     for (int i = 1; i <= metaData.getColumnCount(); i++)
                         map.put(metaData.getColumnName(i), resultSet.getObject(i));
                     list.add(map);
                 }
             }
-        }
-        catch (SQLException e) {
+        } catch (SQLException e)
+        {
             ApiLogger.getLogger().error(e);
         }
         return list;
@@ -416,7 +523,8 @@ public class CustomerHandler implements AutoCloseable, ISO, SQL
     {
         Map<String, Object> data = new HashMap<String, Object>();
         Map<String, Object> response = new HashMap<String, Object>();
-        try (Statement statement = conn.createStatement()) {
+        try (Statement statement = conn.createStatement())
+        {
 
             List<Map<String, Object>> title_types = fetchListMap("select title_id, title from " + XapiCodes.coreschema + "..ad_rm_title where title_id in (1,4,9)", statement);
             response.put("title_types", title_types);
@@ -426,8 +534,8 @@ public class CustomerHandler implements AutoCloseable, ISO, SQL
 
             response.put("responseCode", XAPI_APPROVED);
 
-        }
-        catch (Exception e1) {
+        } catch (Exception e1)
+        {
             ApiLogger.getLogger().error(e1);
         }
         return response;
@@ -435,11 +543,12 @@ public class CustomerHandler implements AutoCloseable, ISO, SQL
 
     public List<Map<String, Object>> fetchListMap(String query, Statement statement)
     {
-        try (ResultSet resultSet = statement.executeQuery(query)) {
+        try (ResultSet resultSet = statement.executeQuery(query))
+        {
             List<Map<String, Object>> mapList = asListMap(resultSet);
             return mapList;
-        }
-        catch (Exception e1) {
+        } catch (Exception e1)
+        {
             ApiLogger.getLogger().error(e1);
         }
         return null;
@@ -453,38 +562,46 @@ public class CustomerHandler implements AutoCloseable, ISO, SQL
         //Map<String, Object> Objectmap1 = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
         Map<Integer, String> cityMap = new HashMap<>();
         String query2 = "select ptid,state from " + XapiCodes.coreschema + "..ei_state";
-        try (ResultSet resultSet = statement.executeQuery(query2)) {
-            while (resultSet.next()) {
+        try (ResultSet resultSet = statement.executeQuery(query2))
+        {
+            while (resultSet.next())
+            {
                 cityMap.put(resultSet.getInt(1), resultSet.getString(2));
             }
 
-        }
-        catch (Exception e1) {
+        } catch (Exception e1)
+        {
             ApiLogger.getLogger().error(e1);
         }
 
-        for (Map.Entry m : cityMap.entrySet()) {
-          //  System.out.println(m.getKey() + " " + m.getValue());
+        for (Map.Entry m : cityMap.entrySet())
+        {
+            //  System.out.println(m.getKey() + " " + m.getValue());
             String stateString = ("state".concat(":\"").concat(String.valueOf(m.getValue())).concat("\",\"").concat("cities"));
-          //  String stateString = ("state".concat(formatReplaceStr(String.valueOf(m.getValue()))).concat(",").concat(formatReplaceStr("cities")));
-          Objectmap.put(stateString, fetchListMap(query + " where state_id =" + m.getKey() + " order by state_id", statement));
-        //    Objectmap1.put("state",Objectmap);
+            //  String stateString = ("state".concat(formatReplaceStr(String.valueOf(m.getValue()))).concat(",").concat(formatReplaceStr("cities")));
+            Objectmap.put(stateString, fetchListMap(query + " where state_id =" + m.getKey() + " order by state_id", statement));
+            //    Objectmap1.put("state",Objectmap);
         }
         mapList1.add(Objectmap);
         return mapList1;
         //  return null;
     }
+
     public static String formatReplaceStr(String txt)
     {
-        String Fstring = "\"".concat(txt).concat("\"") ;
+        String Fstring = "\"".concat(txt).concat("\"");
 
 
         return Fstring;
     }
+
     public boolean insertAdditionalField(String value, int fieldId, String key, String user, String objectType)
     {
+        key = new BigDecimal(key).setScale(0, RoundingMode.DOWN).stripTrailingZeros().toPlainString();
+        System.out.println("RIM >>>> to insert to  BVN" + key);
         String acctType = "'RM'", applType = "RM", acctPrefix = "RM", cls_id = "";
-        switch (objectType.toUpperCase()) {
+        switch (objectType.toUpperCase())
+        {
             case "RM":
                 cls_id = "(select class_code from " + XapiCodes.coreschema + "..rm_acct "
                         + "where rim_no = " + key + ")";
@@ -502,10 +619,12 @@ public class CustomerHandler implements AutoCloseable, ISO, SQL
         ResultSet rs = null;
         Statement stmt = null;
         PreparedStatement getGbUserDefinePtid = null;
-        try {
+        try
+        {
             getGbUserDefinePtid = conn.prepareCall("{call " + XapiCodes.coreschema + "..psp_class_get_ptid (GB_USER_DEFINED,1)}");
             rs = getGbUserDefinePtid.executeQuery();
-            if (rs.next()) {
+            if (rs.next())
+            {
                 int ptid = rs.getInt(1);
 
                 String insertAdditionalField = "Insert into " + XapiCodes.coreschema + "..GB_USER_DEFINED "
@@ -520,33 +639,39 @@ public class CustomerHandler implements AutoCloseable, ISO, SQL
                 stmt.execute(insertAdditionalField);
                 success = true;
             }
-        }
-        catch (SQLException ex) {
+        } catch (SQLException ex)
+        {
             ApiLogger.getLogger().error("[inserAdditionalField]", ex);
-        }
-        finally {
+        } finally
+        {
 
-            if (rs != null) {
-                try {
+            if (rs != null)
+            {
+                try
+                {
                     rs.close();
-                }
-                catch (SQLException ex) {
+                } catch (SQLException ex)
+                {
                     rs = null;
                 }
             }
-            if (getGbUserDefinePtid != null) {
-                try {
+            if (getGbUserDefinePtid != null)
+            {
+                try
+                {
                     getGbUserDefinePtid.close();
-                }
-                catch (SQLException ex) {
+                } catch (SQLException ex)
+                {
                     getGbUserDefinePtid = null;
                 }
             }
-            if (stmt != null) {
-                try {
+            if (stmt != null)
+            {
+                try
+                {
                     stmt.close();
-                }
-                catch (SQLException ex) {
+                } catch (SQLException ex)
+                {
                     stmt = null;
                 }
             }

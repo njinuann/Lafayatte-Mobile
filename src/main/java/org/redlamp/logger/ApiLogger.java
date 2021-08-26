@@ -51,5 +51,8 @@ public class ApiLogger implements RequestLog {
 		if (XapiPool.DEBUG_ENABLED)
 			ApiLogger.getLogger().debug(request + " <:> " + response);
 	}
-
+	public static void info(Object request, Object response)
+	{
+		ApiLogger.getLogger().debug(request + " <:> " + response);
+	}
 }

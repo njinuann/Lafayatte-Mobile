@@ -93,8 +93,7 @@
 	<entry key="02">Refer to card issuer, special condition</entry>
 	<entry key="67">Hard capture</entry>
 	<entry key="01">Refer to card issuer</entry>
-	<entry key="66">Call acquirer security</entry>
-	<entry key="00">Approved or completed successfully</entry>
+	<entry key="66">Call acquirer security</entry>	
 	<entry key="65">Exceeds withdrawal frequencySent</entry>
 	<entry key="64">Original amount incorrect</entry>
 	<entry key="63">Security violation</entry>
@@ -110,4 +109,12 @@
 	<entry key="S105">This feature is not available for the moment. Please try again later.</entry>
 	<entry key="106">Registration is only permitted for savings and or current accounts</entry>
 	<entry key="N00">Your transaction has been succesfully submitted for processing</entry>
+	<entry key="00">Approved or completed successfully</entry>
+	<entry key="L01">Loan Account Creation Failed</entry>
+	<entry key="L02">Customer is not Eligible</entry>
+	<entry key="L03">Account Not Found/Not Allowed</entry>
+	<entry key="L04">Repayment amount does not match the payoff amount</entry>
+	<entry key="L05">Invalid Loan Term. Refer to Terms and Conditions</entry>
+	<entry key="L06">Repayment Not allowed before {REPDAYS} days. Retry after {REPDAYS} days</entry>
+	<entry key="L07">Loan Creation Failed, there is an Existing active Loan</entry>
 </properties>

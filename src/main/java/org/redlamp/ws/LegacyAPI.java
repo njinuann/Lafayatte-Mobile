@@ -81,7 +81,8 @@ public class LegacyAPI {
 			outcome.put("responseTxt", "Missing authorization header password {authpass}");
 		} else {
 			try (AccountMiddleware helper = new AccountMiddleware()) {
-				outcome = helper.getDepAcctList(regInput.get("account_no"));
+				outcome = helper.getDepAcctList(regInput.get
+						("account_no").replace("-",""));
 			} finally {
 				ApiLogger.debug(regInput + " <:> " + outcome);
 			}
