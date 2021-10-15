@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<connection-pool name="jdbc" logger="Q2" realm="connection-pool" class="org.redlamp.util.XapiPool">
+    <property name="jdbc.driver" value="com.sybase.jdbc4.jdbc.SybDriver" />
+    <property name="online.jdbc.url" value="jdbc:sybase:Tds:10.70.1.26:10000/xapi" />
+    <property name="online.jdbc.user" value="sa"></property>
+    <property name="online.jdbc.paswd" value="911811301021121901511" />
+    <property name="offline.jdbc.url" value="jdbc:sybase:Tds:10.70.1.67:10000/xapi_offline" />
+    <property name="offline.jdbc.user" value="sa"></property>
+    <property name="offline.jdbc.paswd" value="911811301021121901511" />
+    <property name="init.conns" value="2" />
+    <property name="min.idle" value="2" />
+    <property name="max.conns" value="15" />
+    <property name="test.script" value="select getdate()" />
+    <property name="core.schema" value="testing" />
+    <property name="test.mode" value="true" />
+    <property name="phone.prefix" value="234" />
+    <!-- Charge Codes for USSD -->
+    <property name="mini.statement" value="M" />
+    <property name="balance.enquiry" value="B" />
+    <property name="internal.transfer" value="-10" />
+    <property name="quick-teller" value="Q" />
+    <property name="airtime" value="C" />
+    <property name="billpayment" value="" />
+    <property name="QT_CC" value="T" />
+    <!-- Date format for Webservice display -->
+    <property name="date.format" value="dd-MMM-yyyy" />
+    <property name="bank.code" value="090155" />
+    <property name="nibss.url" value="http://192.168.4.33:5588/NIPClient/CNService" />
+    <!-- Date format for sms display -->
+    <property name="startAlertsService" value="false" />
+    <property name="lanHasProxy" value="false" />
+    <property name="lanProxyServer" value="10.176.11.3" />
+    <property name="lanProxyPort" value="3128" />
+    <property name="SMSGatewayURL" value="http://www.cellcore.com.ng/cgi-bin/sms/api.cgi" />
+    <property name="SMSGatewayUser" value="Advans" />
+    <property name="SMSGatewayPassword" value="601421201311201750021850950" />
+    <property name="SMSGatewaySourceName" value="AdvansLFMFB" />
+    <property name="DEBUG_ENABLED" value="true" />
+    <property name="nibss.allow" value="true" />
+    <!-- defaults for remote customer/account opening -->
+    <property name="rimClassCode" value="120"/>
+    <property name="identityType" value="28"/>
+    <property name="marketingId" value="24"/>
+    <property name="defaultBranch" value="110"/>
+    <property name="depositClassCode" value="241"/>
+    <!-- defaults for e loan -->
+    <property name="purposeId" value="2"/>
+    <property name="lnClassCode" value="591"/>
+    <property name="dpClassCode" value="241"/>
+
+
+</connection-pool>

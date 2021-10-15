@@ -1,0 +1,25 @@
+Manifest-Version: 1.0
+Implementation-Title: MobileBanking
+Implementation-Version: 1.0-SNAPSHOT
+X-COMMENT: Mobile Banking Bridge
+Class-Path: lib/asm-all-repackaged-2.2.0-b21.jar lib/axis.jar lib/comm
+ ons-discovery-0.2.jar lib/jackson-all-1.9.0.jar lib/javax.wsdl_1.6.2.
+ v201012040545.jar lib/jaxrpc.jar lib/jconn4.jar lib/loglite.jar lib/s
+ aaj.jar lib/jpos-2.1.4.jar lib/commons-dbutils-1.7.jar lib/gson-2.8.6
+ .jar lib/c3p0-0.9.5.5.jar lib/jetty-servlet-9.4.17.v20190418.jar lib/
+ jetty-security-9.4.17.v20190418.jar lib/jetty-server-9.4.17.v20190418
+ .jar lib/jersey-bundle-1.18.jar lib/commons-logging-1.2.jar lib/jetty
+ -xml-9.4.17.v20190418.jar lib/okhttp-3.0.0.jar lib/jetty-jmx-9.4.17.v
+ 20190418.jar lib/javassist-3.26.0-GA.jar lib/jetty-jndi-9.4.17.v20190
+ 418.jar lib/org.osgi.core-6.0.0.jar lib/snakeyaml-1.26.jar lib/jdbm-1
+ .0.jar lib/je-18.3.12.jar lib/sshd-core-2.4.0.jar lib/jdom2-2.0.6.jar
+  lib/javatuples-1.2.jar lib/jline-3.14.0.jar lib/bsh-2.0b6.jar lib/co
+ mmons-cli-1.4.jar lib/bcpg-jdk15on-1.64.jar lib/bcprov-jdk15on-1.64.j
+ ar lib/sshd-common-2.4.0.jar lib/slf4j-api-1.7.30.jar lib/HdrHistogra
+ m-2.1.12.jar lib/mchange-commons-java-0.2.19.jar lib/javax.servlet-ap
+ i-3.1.0.jar lib/jetty-http-9.4.17.v20190418.jar lib/jetty-io-9.4.17.v
+ 20190418.jar lib/jsr311-api-1.1.1.jar lib/jetty-util-9.4.17.v20190418
+ .jar lib/okio-1.6.0.jar
+Created-By: Gradle Build (Neptune Software Group)
+Main-Class: org.redlamp.core.MainClass
+
