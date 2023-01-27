@@ -97,7 +97,7 @@ public class CRCaller
             }
         }
         buffer.append("\r\n").append(getExtraIndent()).append("<xapirespcode>").append(getXapiRespCode()).append(" ~ ").append(XapiCodes.getErrorDesc(getXapiRespCode())).append("</xapirespcode>");
-        buffer.append("\r\n").append(getExtraIndent()).append("<xapiRespMsg>").append(getXapiRespMsg()).append(" ~ ").append(XapiCodes.getErrorDesc(getXapiRespMsg())).append("</xapiRespMsg>");
+        buffer.append("\r\n").append(getExtraIndent()).append("<xapiRespMsg>").append(getXapiRespMsg()).append("</xapiRespMsg>");
         buffer.append("\r\n").append(getExtraIndent()).append("<duration>").append(getDuration()).append("</duration>");
         buffer.append("\r\n").append("</call>");
         return buffer.toString();

@@ -75,6 +75,7 @@ public interface ISO {
 	String INVALID_LOAN_TERM = "L05";
 	String REPAYMENT_NOT_ALLOWED = "L06";
 	String ACTIVE_LOAN_EXISTS = "L07";
-	
+	String EXCEEDS_HIGHER_LIMIT = "L08";
+	String LESS_LOWER_LIMIT = "L09";
 
 }

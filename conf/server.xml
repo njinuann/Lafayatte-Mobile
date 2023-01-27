@@ -28,7 +28,7 @@
 			<Ref refid="Server" />
 		</Arg>
 		<Set name="Port" type="int">
-			<Property name="jetty.port" default="8443" />
+			<Property name="jetty.port" default="8444" />
 		</Set>
 		<Set name="IdleTimeout" type="long">
 			<Property name="jetty.port" default="30000" />

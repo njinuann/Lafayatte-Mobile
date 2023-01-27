@@ -60,14 +60,14 @@ public class XapiPool extends QBeanSupport implements Configurable
             maxWithdrawalAmt, maxCollectedBal, dpCycle1Score, dpCycle2Score, voluntaryDpMonths, dpAveVolumeMonths,
             dpAveVolPercentage, dpMaxTxnPeriod, dpMidTxnPeriod, dpMinTxnPeriod, dp3monthScore, dp6monthScore, dp9monthScore,
             repmt14DaysScore, repmt25DaysScore, repmt30DaysScore, repmt3DaysLateDaysScore, minDepositorLnAmount, maxDepositorLnAmount;
-    public static String allowedLnClass, allowedRimClassDepositor,allowedRimClassBorrower, allowedDpClass, dpTranCode;
+    public static String allowedLnClass, allowedRimClassDepositor,allowedRimClassBorrower, allowedDpClass, dpTranCode,voluntaryDpClass;
 
     //Digital Borrower loan parameters
     public static BigDecimal minBorrowerLnAmount, maxBorrowerLnAmount, weightedInstCycle1Points, weightedInstCycle2Points, weightedInstCycle3Points,
             riskGroupNormalPoints, riskGroupMediumPoints, riskGroupOtherPoints, residenceStatusOwnPoints, residenceStatusOtherPoints,
-            definitionScoreA, definitionScoreB, definitionScoreC, definitionScoreD;
+            definitionScoreA, definitionScoreB, definitionScoreC, definitionScoreD,BRClassAMaxAmount,BRClassBMaxAmount,BRClassCMaxAmount;
     public static Long latePmtMoreThan7Days, latePmtMoreThan30Days, days7lateInstallmentCount, days30lateInstallmentCount, minInstallments, previousLoanClosureDays,
-            averageMonths, allowedNoOfLoansPerYear,minLoanterm,repayAfterDays,borrowerLoanClassCode,depositorLoanClassCode;
+            averageMonths, allowedNoOfLoansPerYear,minLoanterm, repayAfterDays,borrowerLoanClassCode,depositorLoanClassCode;
     public static String allowedBorrowerLnClass,  allowedBorrowerDpClass, borrowerdpTranCode,
             weightedInstCycle1, weightedInstCycle2, weightedInstCycle3, weightScoreParam = "WS01", scoreDefParameter = "DS01", defaultInstalmentParam = "DI01", loanDurationParam = "DL01", cycleParam = "CY01",
             riskGroupNormal, riskGroupMedium, riskGroupOther, residenceStatusOwn, residenceStatusOther,defaultLoanPeriod,allowedStates;
@@ -331,7 +331,7 @@ public class XapiPool extends QBeanSupport implements Configurable
 
     public static String resolveError(String errorCode)
     {
-        String resolvedError = "96";
+        String resolvedError = errorCode;
         if (errorCode.startsWith("L") || errorCode.startsWith("00"))
         {
             resolvedError = errorCode;
@@ -377,6 +377,7 @@ public class XapiPool extends QBeanSupport implements Configurable
         allowedDpClass = getSetting("allowedDpClass");
         allowedLnClass = getSetting("allowedLnClass");
         dpTranCode = getSetting("dpTranCode");
+        voluntaryDpClass = getSetting("voluntaryDpClass");
         //loan
         maxBorrowerLnAmount = getDecimalSetting("maxBorrowerLnAmount");
         minBorrowerLnAmount = getDecimalSetting("minBorrowerLnAmount");
@@ -392,6 +393,11 @@ public class XapiPool extends QBeanSupport implements Configurable
         definitionScoreB = getDecimalSetting("definitionScoreB");
         definitionScoreC = getDecimalSetting("definitionScoreC");
         definitionScoreD = getDecimalSetting("definitionScoreD");
+
+        BRClassAMaxAmount = getDecimalSetting("BRClassAMaxAmount");
+        BRClassBMaxAmount = getDecimalSetting("BRClassBMaxAmount");
+        BRClassCMaxAmount = getDecimalSetting("BRClassCMaxAmount");
+
         latePmtMoreThan7Days = getLongSetting("latePmtMoreThan7Days");
         latePmtMoreThan30Days = getLongSetting("latePmtMoreThan30Days");
         days7lateInstallmentCount = getLongSetting("days7lateInstallmentCount");
@@ -556,5 +562,6 @@ public class XapiPool extends QBeanSupport implements Configurable
         }
         super.destroy();
     }
+
 
 }

@@ -73,11 +73,13 @@ public abstract class XapiCodes
 
     static
     {
+
         try (FileInputStream fis = new FileInputStream("conf/postcodes.xml");
              FileInputStream fos = new FileInputStream("conf/currency.xml"))
         {
             errorCodes.loadFromXML(fis);
             currencyMapping.loadFromXML(fos);
+            System.err.println("Loaded error/post codes");
         } catch (IOException e)
         {
             IsoLogger.getLogger().error(e);
@@ -86,14 +88,14 @@ public abstract class XapiCodes
 
     public static synchronized String getErrorDesc(Object errorCode)
     {
-        //return errorCodes.getProperty(String.valueOf(errorCode), "96");
+        System.err.println("Error code to resolve " + String.valueOf(errorCode));
         return replaceHolders(errorCodes.getProperty(String.valueOf(errorCode), "Failed"));
     }
 
     public static synchronized String replaceHolders(String templateMsg)
     {
         String message = "";
-        if (templateMsg.contains("{") || templateMsg.contains("{"))
+        if (templateMsg.contains("{") || templateMsg.contains("}"))
         {
             message = templateMsg.replace("{REPDAYS}", String.valueOf(XapiPool.repayAfterDays)
                     .replace("{DURATION}", XapiPool.loanDurationParam));

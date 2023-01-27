@@ -6,7 +6,7 @@ public class EICrypt
     public static void main(String[] args)
     {
 
-        System.out.println(decrypt("911811301021121901511"));
+        System.out.println(decrypt("016827808008040847809002"));
     }
 
     public static String encrypt(String srcString)

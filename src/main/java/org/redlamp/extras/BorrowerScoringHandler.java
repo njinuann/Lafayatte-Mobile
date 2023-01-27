@@ -8,6 +8,7 @@ import org.redlamp.util.XapiCodes;
 import org.redlamp.util.XapiPool;
 
 import java.math.BigDecimal;
+import java.math.MathContext;
 import java.math.RoundingMode;
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -26,6 +27,7 @@ public class BorrowerScoringHandler implements AutoCloseable, ISO, SQL
     private CRCaller crCaller = new CRCaller();
     private long endTime;
     private long startTime;
+    private String additionalResponseText = "";
 
 
     public BorrowerScoringHandler()
@@ -62,11 +64,22 @@ public class BorrowerScoringHandler implements AutoCloseable, ISO, SQL
 
     public Map<String, Object> processScore(LoanRequest request)
     {
+        try
+        {
+            if (conn == null || conn.isClosed())
+            {
+                conn = XapiPool.getConnection();
+            }
+        } catch (Exception ex)
+        {
+            ApiLogger.getLogger().error(ex);
+        }
         setBlScoreCard(getCrCaller().getBlScoreCard());
         BigDecimal finalScore1 = BigDecimal.ZERO;
         BigDecimal finalScore2 = BigDecimal.ZERO;
         BigDecimal minScore = BigDecimal.ZERO;
         BigDecimal approvedScore = BigDecimal.ZERO;
+        boolean initialCheck = true;
 
 
         List<Map<String, Object>> list = new ArrayList<>();
@@ -106,111 +119,292 @@ public class BorrowerScoringHandler implements AutoCloseable, ISO, SQL
             getCrCaller().setCall("hasValidCycle", hasValidCycle);
             boolean hasRequiredMinInstalments = hasMinReqInstalment(blAccount, XapiPool.minInstallments);
             getCrCaller().setCall("hasRequiredMinInstalments", hasRequiredMinInstalments);
-            boolean isRestructured = !loanRestructured(blAccount);
-            getCrCaller().setCall("isRestructured", isRestructured);
+            boolean noRestructuredLoan = !loanRestructured(blAccount);
+            getCrCaller().setCall("No Restructured Loan", noRestructuredLoan);
             boolean hasClosureMonths = satisfiesLoanClosurePeriod(blAccount, XapiPool.previousLoanClosureDays);
             getCrCaller().setCall("hasClosureMonths", hasClosureMonths);
-            boolean hasPreviousLoanDefaulted7days = !hasLatePaymentsDaysCount(blAccount, XapiPool.latePmtMoreThan7Days, XapiPool.days7lateInstallmentCount); //parameter
-            getCrCaller().setCall("hasPreviousLoanDefaultedSEVENdays", hasPreviousLoanDefaulted7days);
-            boolean hasPreviousLoanDefaulted30days = !hasLatePaymentsDaysCount(blAccount, XapiPool.latePmtMoreThan30Days, XapiPool.days30lateInstallmentCount);
-            getCrCaller().setCall("hasPreviousLoanDefaultedTHIRTYdays", hasPreviousLoanDefaulted30days);
+            boolean noPreviousLoanDefaulted7days = !hasLatePaymentsDaysCount(blAccount, XapiPool.latePmtMoreThan7Days, XapiPool.days7lateInstallmentCount); //parameter
+            getCrCaller().setCall("hasNoPreviousLoanDefaultedSEVENdays", noPreviousLoanDefaulted7days);
+            boolean hasNoPreviousLoanDefaulted30days = !hasLatePaymentsDaysCount(blAccount, XapiPool.latePmtMoreThan30Days, XapiPool.days30lateInstallmentCount);
+            getCrCaller().setCall("hasNoPreviousLoanDefaultedTHIRTYdays", hasNoPreviousLoanDefaulted30days);
             boolean hasCurrentDelayedPayment = !hasCurrentDelayedPayment(blAccount);
             getCrCaller().setCall("hasCurrentDelayedPayment", hasCurrentDelayedPayment);
-            boolean hasMaxLoansPerYear = !hasMaxLoansPerYear(blAccount, XapiPool.allowedNoOfLoansPerYear);
-            getCrCaller().setCall("hasMaxLoansPerYear", hasMaxLoansPerYear);
-            boolean hasDelayedCurrentInstallment = !hasDelayedCurrentInstallment(blAccount);
-            getCrCaller().setCall("hasDelayedCurrentInstallment", hasDelayedCurrentInstallment);
+            boolean noMaxLoansPerYear = !hasMaxLoansPerYear(blAccount, XapiPool.allowedNoOfLoansPerYear);
+            getCrCaller().setCall("noMaxLoansPerYear", noMaxLoansPerYear);
+            boolean hasNoDelayedCurrentInstallment = !hasDelayedCurrentInstallment(blAccount);
+            getCrCaller().setCall("hasNoDelayedCurrentInstallment", hasNoDelayedCurrentInstallment);
             boolean isStateEligible = Objects.equals(XapiPool.allowedStates, "*") ? true : isStateEligible(blAccount);
             getCrCaller().setCall("isStateEligible", isStateEligible);
-            boolean hasLoanAccount =  !Objects.equals("XoX", acctWithLargestDisbursement.getAccountNo());
-            System.err.println("<><>><><><><><><><><><><><><>< "+acctWithLargestDisbursement.getAccountNo());
+            boolean hasLoanAccount = !Objects.equals("XoX", acctWithLargestDisbursement.getAccountNo());
+            System.err.println("<><>><><><><><><><><><><><><>< " + acctWithLargestDisbursement.getAccountNo());
 
             getBlScoreCard().setLoanScoreTpe("Borrower Score");
             getCrCaller().setNarration(getBlScoreCard().getLoanScoreTpe());
             getBlScoreCard().setClassCodesAllowed(isClassCodeAllowed);
             getBlScoreCard().setHasValidCycle(hasValidCycle);
-            getBlScoreCard().setRestructured(isRestructured);
+            getBlScoreCard().setRestructured(noRestructuredLoan);
             getBlScoreCard().setHasClosureMonths(hasClosureMonths);
-            getBlScoreCard().setHasPreviousLoanDefaulted7days(hasPreviousLoanDefaulted7days);
-            getBlScoreCard().setHasPreviousLoanDefaulted30days(hasPreviousLoanDefaulted30days);
+            getBlScoreCard().setHasPreviousLoanDefaulted7days(noPreviousLoanDefaulted7days);
+            getBlScoreCard().setHasPreviousLoanDefaulted30days(hasNoPreviousLoanDefaulted30days);
             getBlScoreCard().setHasCurrentDelayedPayment(hasCurrentDelayedPayment);
-            getBlScoreCard().setHasMaxLoansPerYear(hasMaxLoansPerYear);
-            getBlScoreCard().setHasDelayedCurrentInstallment(hasDelayedCurrentInstallment);
+            getBlScoreCard().setHasMaxLoansPerYear(noMaxLoansPerYear);
+            getBlScoreCard().setHasDelayedCurrentInstallment(hasNoDelayedCurrentInstallment);
 
             getCrCaller().setCall("Initial Checks", "\n==================\n\t ClassCode Allowed = " + isClassCodeAllowed + ", " +
                     "\n\t has Cycle Valid = " + hasValidCycle + ", " +
                     "\n\t has Required Min Instalments = " + hasRequiredMinInstalments + ", " +
-                    "\n\t Restructured = " + isRestructured + ", " +
+                    "\n\t has No Restructured = " + noRestructuredLoan + ", " +
                     "\n\t has Months closure = " + hasClosureMonths + ", " +
-                    "\n\t has 7days default = " + hasPreviousLoanDefaulted7days +
-                    "\n\t has 30 days default = " + hasPreviousLoanDefaulted30days +
+                    "\n\t has No 7days default = " + noPreviousLoanDefaulted7days +
+                    "\n\t has No30 days default = " + hasNoPreviousLoanDefaulted30days +
                     "\n\t has current delayed payment = " + hasCurrentDelayedPayment +
-                    "\n\t has max loan per year = " + hasMaxLoansPerYear +
-                    "\n\t has current delayed installment = " + hasDelayedCurrentInstallment +
+                    "\n\t has No max loan per year = " + noMaxLoansPerYear +
+                    "\n\t has current delayed installment = " + hasNoDelayedCurrentInstallment +
                     "\n\t has valid State = " + isStateEligible +
                     "\n\t has valid loan = " + hasLoanAccount +
-                    "\n\t has max Loans per year = " + hasMaxLoansPerYear + "\n ==================\n"
+                    "\n\t has No max Loans per year = " + noMaxLoansPerYear + "\n ==================\n"
             );
             System.err.println("EVALUATING BIGGE " + hasLoanAccount);
             System.err.println("=========== BEGIN PRE ANALYSIS ===========");
-            if (isClassCodeAllowed && hasValidCycle && hasRequiredMinInstalments && isRestructured
-                    && hasClosureMonths && hasPreviousLoanDefaulted7days && hasPreviousLoanDefaulted30days
-                    && hasCurrentDelayedPayment && hasMaxLoansPerYear && hasDelayedCurrentInstallment && isStateEligible && hasMaxLoansPerYear
-                    && hasLoanAccount)    //changed maxloanper year for testing purposes.. !hasMaxLoansPerYear
+            if (isClassCodeAllowed)
             {
-                getCrCaller().setCall("=========== AFTER PRE ANALYSIS ===========", isStateEligible);
-                System.err.println("=========== AFTER PRE ANALYSIS ===========");
-                BigDecimal historyScore = historyScore(blAccount);
-                getBlScoreCard().setHistoryScore(historyScore);
+                if (hasValidCycle)
+                {
+                    if (hasRequiredMinInstalments)
+                    {
+                        if (noRestructuredLoan)
+                        {
+                            if (hasClosureMonths)
+                            {
+                                if (noPreviousLoanDefaulted7days)
+                                {
+                                    if (hasNoPreviousLoanDefaulted30days)
+                                    {
+                                        if (hasCurrentDelayedPayment)
+                                        {
+                                            if (noMaxLoansPerYear)
+                                            {
+                                                if (hasNoDelayedCurrentInstallment)
+                                                {
+                                                    if (isStateEligible)
+                                                    {
+                                                        if (hasLoanAccount)
+                                                        {
+                                                            if (noMaxLoansPerYear)
+                                                            {
+                                                                initialCheck = false;
+                                                                getCrCaller().setCall("=========== AFTER PRE ANALYSIS ===========", isStateEligible);
+                                                                System.err.println("=========== AFTER PRE ANALYSIS ===========");
+                                                                BigDecimal historyScore = historyScore(blAccount);
+                                                                getBlScoreCard().setHistoryScore(historyScore);
 
-                BigDecimal averageInstalments = instalmentAverageForPeriod(blAccount, XapiPool.averageMonths);
+                                                                BigDecimal averageInstalments = instalmentAverageForPeriod(blAccount, XapiPool.averageMonths);
 
-                getBlScoreCard().setAverageVlmScore(averageInstalments);
+                                                                getBlScoreCard().setAverageVlmScore(averageInstalments);
 
-                BigDecimal RepaymentScore = checkRepaymentScore(blAccount.getRimNo());
-                getBlScoreCard().setRepaymentScore(RepaymentScore);
+                                                                BigDecimal RepaymentScore = checkRepaymentScore(blAccount.getRimNo());
+                                                                getBlScoreCard().setRepaymentScore(RepaymentScore);
 
-                System.err.println("histScore>>>>>>>>>>>>>>>>>>>>>>>>>>>> " + historyScore);
-                System.err.println("averageInstalments>>>>>>>>>>>>>>>>>>>>>>>>>>>>  " + averageInstalments);
-                System.err.println("RepaymentScore>>>>>>>>>>>>>>>>>>>>>>>>>>>>  " + RepaymentScore);
+                                                                System.err.println("histScore>>>>>>>>>>>>>>>>>>>>>>>>>>>> " + historyScore);
+                                                                System.err.println("averageInstalments>>>>>>>>>>>>>>>>>>>>>>>>>>>>  " + averageInstalments);
+                                                                System.err.println("RepaymentScore>>>>>>>>>>>>>>>>>>>>>>>>>>>>  " + RepaymentScore);
+                                                                if (averageInstalments.compareTo(BigDecimal.ZERO) <= 0)
+                                                                {
+                                                                    response.put("responseCode", CUST_NOT_ELIGIBLE);
+                                                                    additionalResponseText = "[average installment is less than 0]";
+                                                                }
+                                                                else if (historyScore.compareTo(BigDecimal.ZERO) <= 0)
+                                                                {
+                                                                    response.put("responseCode", CUST_NOT_ELIGIBLE);
+                                                                    additionalResponseText = "[history score is less than 0]";
+                                                                }
+                                                                else if (RepaymentScore.compareTo(BigDecimal.ZERO) <= 0)
+                                                                {
+                                                                    response.put("responseCode", CUST_NOT_ELIGIBLE);
+                                                                    additionalResponseText = "[repayment score is less than 0]";
+                                                                }
+                                                                else
+                                                                {
 
-                finalScore1 = averageInstalments.multiply(historyScore).multiply(RepaymentScore); //add all the score to get scored Amt
-                // finalScore1 = averageInstalments.multiply(historyScore); //to facilitate test
-                getBlScoreCard().setFinalScore1(finalScore1);
 
-                System.err.println(finalScore1 + " Check minBorrowerLnAmount " + XapiPool.minBorrowerLnAmount);
-                System.err.println("Check finalScore " + finalScore1.compareTo(XapiPool.minBorrowerLnAmount));
-                System.err.println("Check finalScore " + (finalScore1.compareTo(XapiPool.minBorrowerLnAmount) >= 0));
+                                                                    finalScore1 = averageInstalments.multiply(historyScore).multiply(RepaymentScore); //add all the score to get scored Amt
+                                                                    // finalScore1 = averageInstalments.multiply(historyScore); //to facilitate test
+                                                                    getBlScoreCard().setFinalScore1(finalScore1);
 
-                approvedScore = finalScore1.compareTo(XapiPool.minBorrowerLnAmount) <= 0 ? BigDecimal.ZERO : finalScore1;
-                approvedScore = roundedAmount(approvedScore.intValue());
-                getBlScoreCard().setApprovedScore(approvedScore);
+                                                                    System.err.println(finalScore1 + " Check minBorrowerLnAmount " + XapiPool.minBorrowerLnAmount);
+                                                                    System.err.println("Check finalScore " + finalScore1.compareTo(XapiPool.minBorrowerLnAmount));
+                                                                    System.err.println("Check finalScore " + (finalScore1.compareTo(XapiPool.minBorrowerLnAmount) >= 0));
 
 
-                getCrCaller().setCall("averageInstalments", averageInstalments);
-                getCrCaller().setCall("historyScore", historyScore);
-                getCrCaller().setCall("RepaymentScore", RepaymentScore);
-                getCrCaller().setCall("finalScore1", finalScore1);
-                getCrCaller().setCall("approvedScore", approvedScore);
-                getCrCaller().setCall("mainScore", getBlScoreCard().getBlMainScoreCard());
+                                                                    //approvedScore = finalScore1.compareTo(XapiPool.minBorrowerLnAmount) <= 0 ? BigDecimal.ZERO : finalScore1;
+                                                                    // approvedScore = roundedAmount(approvedScore.intValue());
+                                                                    // getBlScoreCard().setApprovedScore(approvedScore);
+                                                                    if (finalScore1.compareTo(XapiPool.minBorrowerLnAmount) <= 0)
+                                                                    {
+                                                                        response.put("responseCode", CUST_NOT_ELIGIBLE);
+                                                                        additionalResponseText = "[repayment score is less than 0]";
+                                                                        approvedScore = BigDecimal.ZERO;
+                                                                    }
+                                                                    else if (finalScore1.compareTo(getCrCaller().getBlScoreCard().getMaxLimitAmount()) >= 0)
+                                                                    {
+                                                                        approvedScore = roundedAmount(finalScore1.intValue());
+//                                                                         approvedScore = roundedAmount(getCrCaller().getBlScoreCard().getMaxLimitAmount().intValue());
+                                                                        getBlScoreCard().setApprovedScore(approvedScore);
+                                                                    }
+//                                                                    else if (finalScore1.compareTo(XapiPool.maxBorrowerLnAmount) < 0)
+//                                                                    {
+//
+//                                                                        approvedScore = roundedAmount(XapiPool.maxBorrowerLnAmount.intValue());
+//                                                                        getBlScoreCard().setApprovedScore(approvedScore);
+//                                                                    }
+                                                                    else
+                                                                    {
+                                                                        approvedScore = roundedAmount(finalScore1.intValue());
+                                                                        // approvedScore = roundedAmount(approvedScore.intValue());
+                                                                        getBlScoreCard().setApprovedScore(approvedScore);
+                                                                    }
 
-                getBlScoreCard().getBlMainScoreCard().setApprovedScore(approvedScore);
 
+                                                                    getCrCaller().setCall("averageInstalments", averageInstalments);
+                                                                    getCrCaller().setCall("historyScore", historyScore);
+                                                                    getCrCaller().setCall("RepaymentScore", RepaymentScore);
+                                                                    getCrCaller().setCall("finalScore1", finalScore1);
+                                                                    getCrCaller().setCall("approvedScore", approvedScore);
+                                                                    getCrCaller().setCall("mainScore", getBlScoreCard().getBlMainScoreCard());
+
+                                                                    getBlScoreCard().getBlMainScoreCard().setApprovedScore(approvedScore);
+                                                                }
+                                                            }
+                                                            else
+                                                            {
+                                                                response.put("responseCode", CUST_NOT_ELIGIBLE);
+                                                                additionalResponseText = "[Has reached max Loan per year]";
+                                                            }
+                                                        }
+                                                        else
+                                                        {
+                                                            response.put("responseCode", CUST_NOT_ELIGIBLE);
+                                                            additionalResponseText = "[Has No active Loan Account]";
+                                                        }
+                                                    }
+                                                    else
+                                                    {
+                                                        response.put("responseCode", CUST_NOT_ELIGIBLE);
+                                                        additionalResponseText = "[State Not Eligible]";
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    response.put("responseCode", CUST_NOT_ELIGIBLE);
+                                                    additionalResponseText = "[Has Delayed installement]";
+                                                }
+                                            }
+                                            else
+                                            {
+                                                response.put("responseCode", CUST_NOT_ELIGIBLE);
+                                                additionalResponseText = "[Has maximum Loan Per Year]";
+                                            }
+                                        }
+                                        else
+                                        {
+                                            response.put("responseCode", CUST_NOT_ELIGIBLE);
+                                            additionalResponseText = "[Has delayed Payment on Prev Loan]";
+                                        }
+                                    }
+                                    else
+                                    {
+                                        response.put("responseCode", CUST_NOT_ELIGIBLE);
+                                        additionalResponseText = "[Has Defaulted Instalment -30 days]";
+                                    }
+                                }
+                                else
+                                {
+                                    response.put("responseCode", CUST_NOT_ELIGIBLE);
+                                    additionalResponseText = "[Has Defaulted Installment - 7 days]";
+                                }
+                            }
+                            else
+                            {
+                                response.put("responseCode", CUST_NOT_ELIGIBLE);
+                                additionalResponseText = "[Has exceeded Closure Months]";
+                            }
+                        }
+                        else
+                        {
+                            response.put("responseCode", CUST_NOT_ELIGIBLE);
+                            additionalResponseText = "[Has restructured Loan]";
+                        }
+                    }
+                    else
+                    {
+                        response.put("responseCode", CUST_NOT_ELIGIBLE);
+                        additionalResponseText = "[Has no minimum required Instalments]";
+                    }
+                }
+                else
+                {
+                    response.put("responseCode", CUST_NOT_ELIGIBLE);
+                    additionalResponseText = "[Has No Valid cycle]";
+                }
             }
+            else
+            {
+                response.put("responseCode", CUST_NOT_ELIGIBLE);
+                additionalResponseText = "[Class code not Eligible]";
+            }
+//            if (isClassCodeAllowed && hasValidCycle && hasRequiredMinInstalments && noRestructuredLoan
+//                    && hasClosureMonths && noPreviousLoanDefaulted7days && hasNoPreviousLoanDefaulted30days
+//                    && hasCurrentDelayedPayment && noMaxLoansPerYear && hasNoDelayedCurrentInstallment && isStateEligible
+//                    && hasLoanAccount)    //changed maxloanper year for testing purposes.. !hasMaxLoansPerYear
+//            {
+//
+//            }
 
-            if (BigDecimal.ZERO.compareTo(approvedScore) >= 0)
+            if (BigDecimal.ZERO.compareTo(approvedScore) >= 0 && initialCheck)
+            {
+                list.add(map);
+            }
+            else if (BigDecimal.ZERO.compareTo(approvedScore) >= 0 && !initialCheck)
             {
                 list.add(map);
                 response.put("responseCode", CUST_NOT_ELIGIBLE);
+                // additionalResponseText = "[Approved amt less than/equal to 0]";
             }
             else
             {
                 getBlScoreCard().setAmount(approvedScore);
+                getCrCaller().getBlScoreCard().setAmount(approvedScore);
 
                 map.put("Eligible_Amount", blScoreCard.getAmount());
+                if (getCrCaller().getBlScoreCard().getScoreCategory().equalsIgnoreCase("A"))
+                {
+                    getCrCaller().getBlScoreCard().setAmount(XapiPool.BRClassAMaxAmount);
+                    // map.put("MaxAmount", XapiPool.BRClassAMaxAmount.compareTo(approvedScore) > 0 ? approvedScore : XapiPool.BRClassAMaxAmount);
+                    map.put("MaxAmount", XapiPool.BRClassAMaxAmount.compareTo(getCrCaller().getBlScoreCard().getFinalScore1()) > 0 ? approvedScore : XapiPool.BRClassAMaxAmount);
+
+                }
+                else if (getCrCaller().getBlScoreCard().getScoreCategory().equalsIgnoreCase("B"))
+                {
+                    getCrCaller().getBlScoreCard().setAmount(XapiPool.BRClassBMaxAmount);
+                    map.put("MaxAmount", XapiPool.BRClassBMaxAmount.compareTo(approvedScore) > 0 ? approvedScore : XapiPool.BRClassBMaxAmount);
+                }
+                else if (getCrCaller().getBlScoreCard().getScoreCategory().equalsIgnoreCase("C"))
+                {
+                    getCrCaller().getBlScoreCard().setAmount(XapiPool.BRClassCMaxAmount);
+                    map.put("MaxAmount", XapiPool.BRClassCMaxAmount.compareTo(approvedScore) > 0 ? approvedScore : XapiPool.BRClassCMaxAmount);
+                }
+                else
+                {
+                    getCrCaller().getBlScoreCard().setAmount(XapiPool.BRClassCMaxAmount);
+                    map.put("MaxAmount", XapiPool.BRClassCMaxAmount.compareTo(approvedScore) > 0 ? approvedScore : XapiPool.BRClassCMaxAmount);
+                }
+                BigDecimal rate = currentRate(XapiPool.borrowerLoanClassCode);
+
+                map.put("MinAmount", XapiPool.minBorrowerLnAmount);
                 map.put("Account", blScoreCard.getAccountNumber());
                 map.put("Period", XapiPool.defaultLoanPeriod);
                 map.put("Term", XapiPool.minLoanterm);
+                map.put("Rate", rate);
                 list.add(map);
                 response.put("responseCode", XAPI_APPROVED);
             }
@@ -218,30 +412,62 @@ public class BorrowerScoringHandler implements AutoCloseable, ISO, SQL
         }
         else
         {
+            getBlScoreCard().setAccountNumber(request.getAccountNo());
+            getBlScoreCard().setPhoneNumber(request.getPhoneNumber());
+            getBlScoreCard().setLoanScoreTpe("Borrower");
+            getBlScoreCard().setAccountType("n/a");
+            getBlScoreCard().setRimNumber(0L);
             response.put("responseCode", CUST_NOT_ELIGIBLE);
+            additionalResponseText = "[Account not found/not registered]";
         }
         if (!XAPI_APPROVED.equals(response.get("responseCode")))
         {
             map.put("Eligible_Amount", BigDecimal.ZERO);
             map.put("Account", blScoreCard.getAccountNumber());
             response.put("responseTxt", XapiCodes.getErrorDesc(response.get("responseCode")));
+            //additionalResponseText = "[" + XapiCodes.getErrorDesc(response.get("responseCode")) + "]";
         }
         else
         {
+            response.put("responseCode", XAPI_APPROVED);
             response.put("responseTxt", "Customer is Eligible");
+            additionalResponseText = "[Eligible]";
         }
 
         System.out.println("Fina response " + response.get("responseCode"));
         // response.put("responseTxt", XapiCodes.getErrorDesc(response.get("responseCode")));
+        response.put("responseTxt", XapiCodes.getErrorDesc(response.get("responseCode"))
+                + ("".equals(additionalResponseText) ? "" : " " + additionalResponseText));
         response.put("Eligibility_Check", list);
         getCrCaller().setCall("response", response);
         getCrCaller().setCall("scoringitems", getBlScoreCard());
         getCrCaller().setXapiRespCode(String.valueOf(response.get("responseCode")));
+        getCrCaller().setXapiRespMsg(String.valueOf(response.get("responseTxt")));
         windUp();
 
         return response;
     }
 
+    public BigDecimal currentRate(Long classCode)
+    {
+        BigDecimal rate = BigDecimal.ZERO;
+        try (Statement statement = conn.createStatement();
+             ResultSet rs = statement.executeQuery("select aa.rate , bb.accr_basis from " + XapiCodes.coreschema + "..ad_gb_rate_history aa, " + XapiCodes.coreschema + "..ad_ln_cls_int_opt bb "
+                     + " where aa.index_id = bb.index_id  and bb.class_code  =" + classCode + " and aa.ptid = (select max(ptid) from " + XapiCodes.coreschema + "..ad_gb_rate_history where index_id =aa.index_id)"))
+        {
+            if (rs.next())
+            {
+                BigDecimal classRate = rs.getBigDecimal("rate");
+                rate = classRate.multiply((new BigDecimal(30).divide(new BigDecimal(360), MathContext.DECIMAL128))).setScale(2, RoundingMode.UP);
+
+            }
+
+        } catch (Exception e1)
+        {
+            ApiLogger.getLogger().error(e1);
+        }
+        return rate;
+    }
 
     public void windUp()
     {
@@ -251,34 +477,79 @@ public class BorrowerScoringHandler implements AutoCloseable, ISO, SQL
 
     private void writeToLog()
     {
-        //ApiLogger.getLogger().error(e1);
-        setEndTime(System.currentTimeMillis());
-        getCrCaller().setDuration(String.valueOf(getEndTime() - getStartTime()) + " Ms");
+        try
+        {
+            //ApiLogger.getLogger().error(e1);
+            setEndTime(System.currentTimeMillis());
+            getCrCaller().setDuration(String.valueOf(getEndTime() - getStartTime()) + " Ms");
 
 
-        logLoanScore(getCrCaller());
-        new Thread(new ThreadLogger(new ApiLogger(), "<transaction>" + "\r\n\t" + getCrCaller() + "</transaction>")).start();
+            logLoanScore(getCrCaller());
+            new Thread(new ThreadLogger(new ApiLogger(), "<transaction>" + "\r\n\t" + getCrCaller() + "</transaction>")).start();
 
-        // APMain.cqsLog.logEvent(gettXCaller());
-        setCrCaller(new CRCaller());
+            // APMain.cqsLog.logEvent(gettXCaller());
+            setCrCaller(new CRCaller());
+            close();
+        } catch (Exception ex)
+        {
+            ApiLogger.getLogger().error(ex);
+        }
     }
 
     private boolean logLoanScore(CRCaller crCaller)
     {
-        System.out.println("INSERT INTO " + XapiCodes.xapiSchema + "..E_LOAN_SCORE  (ACCOUNT_NO, ACCT_TYPE, RIM_NO, PHONE_NUMBER, SCORE_TYPE, AMOUNT, CYCLE_SCORE, DEPOSITOR_SCORE, AVERAGE_VOLUME_SCORE, REPAYMENT_SCORE, FINAL_SCORE, " +
+        String saveLoanScore = "INSERT INTO " + XapiCodes.xapiSchema + "..E_LOAN_SCORE  (ACCOUNT_NO, ACCT_TYPE, RIM_NO, PHONE_NUMBER, SCORE_TYPE, AMOUNT, CYCLE_SCORE, DEPOSITOR_SCORE, AVERAGE_VOLUME_SCORE, REPAYMENT_SCORE, FINAL_SCORE, " +
                 "HISTORY_SCORE, APPROVED_SCORE, LATE_INSTALMENT_SCORE, BORROWER, CLASS_CODE_ALLOWED, PREV_TIMELY_REPAYMENT, VOLUNTARY_DESPOSITS, VALID_CYCLE, REQ_MIN_INSTALMENTS, LOAN_RESTRUCTRED, " +
                 "CLOSURE_MONTH_VALID, PREV_DEFAULTED_LOAN7DAYS, PREV_DEFAULTED_LOAN30DAYS, CURRENT_DELAYED_PAYMENT, MAX_LOAN_PER_YEAR, DELAYED_CURRENT_INSTALEMENT, RESPONSE_CODE, RESPONSE_MESSAGE, CREATE_DT,SCORE_CLASS,SCORE_POINTS )" +
-                "VALUES('" + crCaller.getBlScoreCard().getAccountNumber() + "','" + crCaller.getBlScoreCard().getAccountType() + "', " + crCaller.getBlScoreCard().getRimNumber() + ",'" + crCaller.getBlScoreCard().getPhoneNumber() + "','Borrower Score Card'," + crCaller.getBlScoreCard().getAmount() + "," + crCaller.getBlScoreCard().getCycleScore() + "," + crCaller.getBlScoreCard().getDepositorScore() + "," + crCaller.getBlScoreCard().getAverageVlmScore() + "," + crCaller.getBlScoreCard().getRepaymentScore() + "," + crCaller.getBlScoreCard().getFinalScore1() + ", " +
-                "" + crCaller.getBlScoreCard().getHistoryScore() + "," + crCaller.getBlScoreCard().getApprovedScore() + "," + crCaller.getBlScoreCard().getLateInstalmentScore() + ",'" + yesNo(crCaller.getBlScoreCard().isBorrower()) + "','" + yesNo(crCaller.getBlScoreCard().isClassCodesAllowed()) + "','" + yesNo(crCaller.getBlScoreCard().isPrevLoanRepaidTimely()) + "','" + yesNo(crCaller.getBlScoreCard().isVoluntaryDepositor()) + "','" + yesNo(crCaller.getBlScoreCard().isHasValidCycle()) + "','" + yesNo(crCaller.getBlScoreCard().isHasRequiredMinInstalments()) + "', " +
-                "'" + yesNo(crCaller.getBlScoreCard().isRestructured()) + "','" + yesNo(crCaller.getBlScoreCard().isHasClosureMonths()) + "','" + yesNo(crCaller.getBlScoreCard().isHasPreviousLoanDefaulted7days()) + "','" + yesNo(crCaller.getBlScoreCard().isHasPreviousLoanDefaulted30days()) + "','" + yesNo(crCaller.getBlScoreCard().isHasCurrentDelayedPayment()) + "','" + yesNo(crCaller.getBlScoreCard().isHasMaxLoansPerYear()) + "','" + yesNo(crCaller.getBlScoreCard().isHasDelayedCurrentInstallment()) + "','" + crCaller.getXapiRespCode() + "','" + XapiCodes.getErrorDesc(crCaller.getXapiRespCode()) + "',getdate(),'" + crCaller.getBlScoreCard().getScoreCategory() + "'," + crCaller.getBlScoreCard().getScorePoints() + ")");
+                "VALUES('" + crCaller.getBlScoreCard().getAccountNumber() + "'," +
+                "'" + crCaller.getBlScoreCard().getAccountType() + "', " +
+                "" + crCaller.getBlScoreCard().getRimNumber() + "," +
+                "'" + crCaller.getBlScoreCard().getPhoneNumber().trim() + "'," +
+                "'Borrower Score Card'," +
+                "" + crCaller.getBlScoreCard().getAmount().setScale(0, 2) + "," +
+                "" + crCaller.getBlScoreCard().getCycleScore().setScale(0, 2) + "," +
+                "" + crCaller.getBlScoreCard().getDepositorScore().setScale(0, 2) + "," +
+                "" + crCaller.getBlScoreCard().getAverageVlmScore().setScale(0, 2) + "," +
+                "" + crCaller.getBlScoreCard().getRepaymentScore().setScale(0, 2) + "," +
+                "" + crCaller.getBlScoreCard().getFinalScore1().setScale(0, 2) + ", " +
+                "" + crCaller.getBlScoreCard().getHistoryScore().setScale(0, 2) + "," +
+                "" + crCaller.getBlScoreCard().getApprovedScore().setScale(0, 2) + "," +
+                "" + crCaller.getBlScoreCard().getLateInstalmentScore().setScale(0, 2) + "," +
+                "'" + yesNo(crCaller.getBlScoreCard().isBorrower()) + "'," +
+                "'" + yesNo(crCaller.getBlScoreCard().isClassCodesAllowed()) + "'," +
+                "'" + yesNo(crCaller.getBlScoreCard().isPrevLoanRepaidTimely()) + "'," +
+                "'" + yesNo(crCaller.getBlScoreCard().isVoluntaryDepositor()) + "'," +
+                "'" + yesNo(crCaller.getBlScoreCard().isHasValidCycle()) + "'," +
+                "'" + yesNo(crCaller.getBlScoreCard().isHasRequiredMinInstalments()) + "', " +
+                "'" + yesNo(crCaller.getBlScoreCard().isRestructured()) + "'," +
+                "'" + yesNo(crCaller.getBlScoreCard().isHasClosureMonths()) + "'," +
+                "'" + yesNo(crCaller.getBlScoreCard().isHasPreviousLoanDefaulted7days()) + "'," +
+                "'" + yesNo(crCaller.getBlScoreCard().isHasPreviousLoanDefaulted30days()) + "'," +
+                "'" + yesNo(crCaller.getBlScoreCard().isHasCurrentDelayedPayment()) + "'," +
+                "'" + yesNo(crCaller.getBlScoreCard().isHasMaxLoansPerYear()) + "'," +
+                "'" + yesNo(crCaller.getBlScoreCard().isHasDelayedCurrentInstallment()) + "'," +
+                "'" + crCaller.getXapiRespCode() + "'," +
+                "'" + getCrCaller().getXapiRespMsg() + "',getdate()," +
+                "'" + crCaller.getBlScoreCard().getScoreCategory() + "'," +
+                "" + crCaller.getBlScoreCard().getScorePoints() + ")";
+        try
+        {
+            if (conn == null || conn.isClosed())
+            {
+                conn = XapiPool.getConnection();
+            }
+        } catch (Exception ex)
+        {
+            ApiLogger.getLogger().error(ex);
+        }
+        ApiLogger.getLogger().info(saveLoanScore);
         try (Statement statement = conn.createStatement())
         {
-            statement.executeUpdate("INSERT INTO " + XapiCodes.xapiSchema + "..E_LOAN_SCORE  (ACCOUNT_NO, ACCT_TYPE, RIM_NO, PHONE_NUMBER, SCORE_TYPE, AMOUNT, CYCLE_SCORE, DEPOSITOR_SCORE, AVERAGE_VOLUME_SCORE, REPAYMENT_SCORE, FINAL_SCORE, " +
-                    "HISTORY_SCORE, APPROVED_SCORE, LATE_INSTALMENT_SCORE, BORROWER, CLASS_CODE_ALLOWED, PREV_TIMELY_REPAYMENT, VOLUNTARY_DESPOSITS, VALID_CYCLE, REQ_MIN_INSTALMENTS, LOAN_RESTRUCTRED, " +
-                    "CLOSURE_MONTH_VALID, PREV_DEFAULTED_LOAN7DAYS, PREV_DEFAULTED_LOAN30DAYS, CURRENT_DELAYED_PAYMENT, MAX_LOAN_PER_YEAR, DELAYED_CURRENT_INSTALEMENT, RESPONSE_CODE, RESPONSE_MESSAGE, CREATE_DT,SCORE_CLASS,SCORE_POINTS )" +
-                    "VALUES('" + crCaller.getBlScoreCard().getAccountNumber() + "','" + crCaller.getBlScoreCard().getAccountType() + "', " + crCaller.getBlScoreCard().getRimNumber() + ",'" + crCaller.getBlScoreCard().getPhoneNumber() + "','Borrower Score Card'," + crCaller.getBlScoreCard().getAmount() + "," + crCaller.getBlScoreCard().getCycleScore() + "," + crCaller.getBlScoreCard().getDepositorScore() + "," + crCaller.getBlScoreCard().getAverageVlmScore() + "," + crCaller.getBlScoreCard().getRepaymentScore() + "," + crCaller.getBlScoreCard().getFinalScore1() + ", " +
-                    "" + crCaller.getBlScoreCard().getHistoryScore() + "," + crCaller.getBlScoreCard().getApprovedScore() + "," + crCaller.getBlScoreCard().getLateInstalmentScore() + ",'" + yesNo(crCaller.getBlScoreCard().isBorrower()) + "','" + yesNo(crCaller.getBlScoreCard().isClassCodesAllowed()) + "','" + yesNo(crCaller.getBlScoreCard().isPrevLoanRepaidTimely()) + "','" + yesNo(crCaller.getBlScoreCard().isVoluntaryDepositor()) + "','" + yesNo(crCaller.getBlScoreCard().isHasValidCycle()) + "','" + yesNo(crCaller.getBlScoreCard().isHasRequiredMinInstalments()) + "', " +
-                    "'" + yesNo(crCaller.getBlScoreCard().isRestructured()) + "','" + yesNo(crCaller.getBlScoreCard().isHasClosureMonths()) + "','" + yesNo(crCaller.getBlScoreCard().isHasPreviousLoanDefaulted7days()) + "','" + yesNo(crCaller.getBlScoreCard().isHasPreviousLoanDefaulted30days()) + "','" + yesNo(crCaller.getBlScoreCard().isHasCurrentDelayedPayment()) + "','" + yesNo(crCaller.getBlScoreCard().isHasMaxLoansPerYear()) + "','" + yesNo(crCaller.getBlScoreCard().isHasDelayedCurrentInstallment()) + "','" + crCaller.getXapiRespCode() + "','" + XapiCodes.getErrorDesc(crCaller.getXapiRespCode()) + "',getdate(),'" + crCaller.getBlScoreCard().getScoreCategory() + "'," + crCaller.getBlScoreCard().getScorePoints() + ")");
+            if (!isBlank(crCaller.getBlScoreCard().getAccountNumber()))
+            {
+                statement.executeUpdate(saveLoanScore);
+
+            }
             return true;
         } catch (Exception ex)
         {
@@ -352,32 +623,39 @@ public class BorrowerScoringHandler implements AutoCloseable, ISO, SQL
         }
         getCrCaller().setCall("History Score", "\n==================" +
                 "\n\t historyScore = " + historyScore + ", " +
-                "\n\t weightedScore = " + weightedScore + ", " +
-                "\n\t finalDefaultInstalmentScore = " + finalDefaultInstalmentScore + ", " +
+                "\n\t points_weighted_late_inst = " + weightedScore + ", " +
+                "\n\t points_default_on_first_three = " + finalDefaultInstalmentScore + ", " +
                 "\n\t loanDurationScore = " + loanDurationScore + ", " +
                 "\n\t calculateCycleScore = " + calculateCycleScore + ", " +
                 "\n\t riskScore = " + riskScore +
-                "\n\t histScoreCategory = " + histScoreCategory +
-                "\n\t residenceScore = " + residenceScore + "\n ==================\n");
+                "\n\t class = " + histScoreCategory +
+                "\n\t points_residence = " + residenceScore +
+                "\n ==================\n");
         getBlScoreCard().getBlMainScoreCard().setDefinitionValueScore(histScoreCategory);
         getCrCaller().getBlScoreCard().setScorePoints(historyScore);
         getCrCaller().getBlScoreCard().setScoreCategory(histScoreCategory);
+        getCrCaller().getBlScoreCard().setMinLimitAmount(XapiPool.minBorrowerLnAmount);
 
         if ("A".equalsIgnoreCase(histScoreCategory))
         {
             finalHistoryScore = XapiPool.definitionScoreA;
+            getCrCaller().getBlScoreCard().setMaxLimitAmount(XapiPool.BRClassAMaxAmount);
+
         }
         else if ("B".equalsIgnoreCase(histScoreCategory))
         {
             finalHistoryScore = XapiPool.definitionScoreB;
+            getCrCaller().getBlScoreCard().setMaxLimitAmount(XapiPool.BRClassBMaxAmount);
         }
         else if ("C".equalsIgnoreCase(histScoreCategory))
         {
             finalHistoryScore = XapiPool.definitionScoreC;
+            getCrCaller().getBlScoreCard().setMaxLimitAmount(XapiPool.BRClassCMaxAmount);
         }
         else if ("D".equalsIgnoreCase(histScoreCategory))
         {
             finalHistoryScore = XapiPool.definitionScoreD;
+            getCrCaller().getBlScoreCard().setMaxLimitAmount(XapiPool.BRClassCMaxAmount);
         }
 
         getCrCaller().setCall("weightedScore", weightedScore);
@@ -389,6 +667,8 @@ public class BorrowerScoringHandler implements AutoCloseable, ISO, SQL
         getCrCaller().setCall("historyScore1", historyScore);
         getCrCaller().setCall("histScoreCategory", histScoreCategory);
         getCrCaller().setCall("finalHistoryScore", finalHistoryScore);
+        getCrCaller().setCall("maximumAmount", getCrCaller().getBlScoreCard().getMaxLimitAmount());
+        getCrCaller().setCall("minimumAmount", getCrCaller().getBlScoreCard().getMinLimitAmount());
 
         getBlScoreCard().getBlMainScoreCard().setHistoryScore(finalHistoryScore);
         return finalHistoryScore;
@@ -530,7 +810,8 @@ public class BorrowerScoringHandler implements AutoCloseable, ISO, SQL
     {
         BigDecimal finalLoanDurationScore = BigDecimal.ZERO;
         //BigDecimal loanDurationScore = queryLoanCycle(bLAccount);
-        BigDecimal loanDurationScore = new BigDecimal(isBlank(getBlScoreItems().getCurrentCycle()) ?-1 : getBlScoreItems().getCurrentCycle());
+        System.err.println(getBlScoreItems().getCurrentCycle() + "<<< getBlScoreItems().getCurrentCycle()>>>");
+        BigDecimal loanDurationScore = new BigDecimal(isBlank(getBlScoreItems().getCurrentCycle()) ? -1 : getBlScoreItems().getCurrentCycle());
         System.err.println("  loanDurationScore >>>>>>>>>> >>>>>>>>>>>>>>> " + loanDurationScore);
         System.err.println("LOAN TERM LoanTermScore.compareTo(BigDecimal.ZERO) > 0 >>>>>>>>>> >>>>>>>>>>>>>>> " + loanDurationScore.compareTo(BigDecimal.ZERO));
 
@@ -673,8 +954,9 @@ public class BorrowerScoringHandler implements AutoCloseable, ISO, SQL
         {
             ApiLogger.getLogger().error(e1);
         }
-        blScoreItems = selectScoringItems2(acctNo, blScoreItems);
 
+        blScoreItems = selectScoringItems2(acctNo, blScoreItems);
+        getCrCaller().setCall("SCORING ITEMS 1 ", blScoreItems);
         return blScoreItems;
     }
 
@@ -699,6 +981,8 @@ public class BorrowerScoringHandler implements AutoCloseable, ISO, SQL
             ApiLogger.getLogger().error(e1);
         }
         blScoreItems = selectScoringItems3(acctNo, blScoreItems);
+        getCrCaller().setCall("SCORING ITEMS 2 ", blScoreItems);
+
         return blScoreItems;
     }
 
@@ -723,6 +1007,7 @@ public class BorrowerScoringHandler implements AutoCloseable, ISO, SQL
         {
             ApiLogger.getLogger().error(e1);
         }
+        getCrCaller().setCall("SCORING ITEMS 3 ", blScoreItems);
         return blScoreItems;
     }
 
@@ -908,11 +1193,11 @@ public class BorrowerScoringHandler implements AutoCloseable, ISO, SQL
     {
         LoanRequest accountDetail = new LoanRequest(); // and status ='Active'
         System.out.println("select acct_no,ld.acct_type,amt_financed,trm,period from " + XapiCodes.coreschema + "..ln_display ld where RIM_NO=" + rimNo + "  " +
-                "and amt_financed =(select max(amt_financed) from " + XapiCodes.coreschema + "..ln_display where RIM_NO=ld.rim_no)");
+                "and amt_financed =(select max(amt_financed) from " + XapiCodes.coreschema + "..ln_display where RIM_NO=ld.rim_no   and status ='Active')   and status ='Active' and class_code in (501,502,503,531,541,591,511,521)");
 
         try (Statement statement = conn.createStatement();
              ResultSet rs = statement.executeQuery("select acct_no,ld.acct_type,amt_financed,trm,period from " + XapiCodes.coreschema + "..ln_display ld where RIM_NO=" + rimNo + "  " +
-                     "and amt_financed =(select max(amt_financed) from " + XapiCodes.coreschema + "..ln_display where RIM_NO=ld.rim_no)"))
+                     "and amt_financed =(select max(amt_financed) from " + XapiCodes.coreschema + "..ln_display where RIM_NO=ld.rim_no   and status ='Active')   and status ='Active' and class_code in (501,502,503,531,541,591,511,521)"))
         {
             if (rs.next())
             {
@@ -925,6 +1210,7 @@ public class BorrowerScoringHandler implements AutoCloseable, ISO, SQL
             else
             {
                 accountDetail.setAccountNo("XoX");
+                additionalResponseText = "[No Loan account Found]";
             }
 
 
@@ -972,16 +1258,25 @@ public class BorrowerScoringHandler implements AutoCloseable, ISO, SQL
 
     public boolean loanRestructured(BLAccount bLAccount)
     {
-        return checkIfExists("loanRestructured", "select  la.opening_reason_id,ar.description from " + XapiCodes.coreschema + "..ln_acct  la, " + XapiCodes.coreschema + "..ad_gb_reason ar " +
+        return checkIfExists("loanRestructured", "select  la.opening_reason_id  from " + XapiCodes.coreschema + "..ln_acct  la, " + XapiCodes.coreschema + "..ad_gb_reason ar " +
                 "where ar.reason_id = la.opening_reason_id and la.opening_reason_id is not null and ar.reason_id =90  and la.acct_no ='" + bLAccount.getLoanAccountNumber() + "' ");
     }
 
     public boolean satisfiesLoanClosurePeriod(BLAccount bLAccount, Long previousLoanClosureDays)
     {
-        return checkIfExists("hassatisfiesLoanClosurePeriod", "select rim_no,* from " + XapiCodes.coreschema + "..ln_display ld where status ='Closed' and RIM_NO=" + bLAccount.getRimNo() + " " +
-                "and ptid = (select max(ptid) from " + XapiCodes.coreschema + "..ln_display where status ='Closed' and RIM_NO=ld.rim_no) " +
-                // " and not exists (select acct_no from " + XapiCodes.coreschema + "..ln_display where status not in ('Closed','Incomplete') and rim_no =ld.rim_no) " +
-                "and datediff(mm, closed_dt,(select dateadd(dd,1,last_to_dt) from " + XapiCodes.coreschema + "..ov_control)) >" + previousLoanClosureDays + "");
+        boolean checkIfHasActiveLoan = checkIfExists("checkActiveLoanForClosureDays", "" +
+                "Select acct_no from  " + XapiCodes.coreschema + "..ln_display where rim_no =" + bLAccount.getRimNo() + " and status ='Active'");
+        if (checkIfHasActiveLoan)
+        {
+            return true;
+        }
+        else
+        {
+            return checkIfExists("hassatisfiesLoanClosurePeriod", "select rim_no,* from " + XapiCodes.coreschema + "..ln_display ld where status ='Closed' and RIM_NO=" + bLAccount.getRimNo() + " " +
+                    "and ptid = (select max(ptid) from " + XapiCodes.coreschema + "..ln_display where status ='Closed' and RIM_NO=ld.rim_no) " +
+                    // " and not exists (select acct_no from " + XapiCodes.coreschema + "..ln_display where status not in ('Closed','Incomplete') and rim_no =ld.rim_no) " +
+                    "and datediff(mm, closed_dt,(select dateadd(dd,1,last_to_dt) from " + XapiCodes.coreschema + "..ov_control)) <=" + previousLoanClosureDays + "");
+        }
     }
 
     public boolean hasMaxLoansPerYear(BLAccount bLAccount, Long allowedNoOfLoansPerYear)

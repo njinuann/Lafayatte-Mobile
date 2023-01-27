@@ -12,6 +12,8 @@ import org.redlamp.util.XapiCodes;
 import org.redlamp.util.XapiPool;
 
 import java.math.BigDecimal;
+import java.math.MathContext;
+import java.math.RoundingMode;
 import java.sql.Date;
 import java.sql.*;
 import java.text.SimpleDateFormat;
@@ -102,6 +104,8 @@ public class LoanHandler implements AutoCloseable, ISO, SQL
 
             stateBuilder.append("").append(0);
             callableStatement.registerOutParameter(13, Types.INTEGER); //return code
+
+            ApiLogger.debug(">> exec <<", stateBuilder);
             callableStatement.executeQuery();
 
             System.out.println(stateBuilder);
@@ -172,6 +176,26 @@ public class LoanHandler implements AutoCloseable, ISO, SQL
                 List<Map<String, Object>> list = new ArrayList<Map<String, Object>>();
                 Map<String, Object> map = new HashMap<String, Object>();
 
+                BigDecimal rate = BigDecimal.ZERO;
+                try (Statement statement = conn.createStatement();
+                     ResultSet rs = statement.executeQuery("select aa.rate , bb.accr_basis from " + XapiCodes.coreschema + "..ad_gb_rate_history aa, " + XapiCodes.coreschema + "..ad_ln_cls_int_opt bb," + XapiCodes.coreschema + "..ln_display cc "
+                             + " where aa.index_id = bb.index_id  and bb.class_code = cc.class_code and cc.acct_no ='" + acct_no.trim() + "' and aa.ptid = (select max(ptid) from " + XapiCodes.coreschema + "..ad_gb_rate_history where index_id =aa.index_id)"))
+                {
+                    if (rs.next())
+                    {
+//                        BigDecimal num1 = new BigDecimal(splitItem(rs.getString("accr_basis"), 0));
+//                        BigDecimal num2 = new BigDecimal(splitItem(rs.getString("accr_basis"), 1));
+                      //  BigDecimal divider = num1.divide(num2, MathContext.DECIMAL128).setScale(4, RoundingMode.UP);
+                        BigDecimal classRate = rs.getBigDecimal("rate");
+                        rate = classRate.multiply((new BigDecimal(30).divide(new BigDecimal(360),MathContext.DECIMAL128))).setScale(2, RoundingMode.UP);
+
+                    }
+
+                } catch (Exception e1)
+                {
+                    ApiLogger.getLogger().error(e1);
+                }
+
                 if (!isBlank(rim_no))
                 {
                     map.put("Account_ID", String.valueOf(rim_no));
@@ -180,6 +204,7 @@ public class LoanHandler implements AutoCloseable, ISO, SQL
                     map.put("Acct_type", acct_type.trim());
                     map.put("Status", status.trim());
                     map.put("Period", period.trim());
+                    map.put("rate", rate);
                     response.put("responseCode", XAPI_APPROVED);
 
                     blLoanCreationResponse.setAccountNumber(acct_no.trim());
@@ -226,6 +251,7 @@ public class LoanHandler implements AutoCloseable, ISO, SQL
             }
 
         }
+
         blLoanCreationResponse.setResponseCode(response.get("responseCode").toString());
         blLoanCreationResponse.setResponseMessage(XapiCodes.getErrorDesc(response.get("responseCode")));
         logLoanCreation(blLoanCreationResponse);
@@ -234,6 +260,13 @@ public class LoanHandler implements AutoCloseable, ISO, SQL
         writeToLog(getCrCaller());
         // responseCode = blLoanCreationResponse.getResponseCode();
         return response;
+    }
+
+    public String splitItem(String bsName, int position)
+    {
+        String temp = bsName;
+        String[] splitString = temp.split("\\/");
+        return splitString[position];
     }
 
     private void writeToLog(CRCaller crCaller)

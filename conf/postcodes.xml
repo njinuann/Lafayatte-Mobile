@@ -108,7 +108,7 @@
 	<entry key="150">No charge is configured for this tran type</entry>
 	<entry key="S105">This feature is not available for the moment. Please try again later.</entry>
 	<entry key="106">Registration is only permitted for savings and or current accounts</entry>
-	<entry key="N00">Your transaction has been succesfully submitted for processing</entry>
+	<entry key="N00">Your transaction has been successfully submitted for processing</entry>
 	<entry key="00">Approved or completed successfully</entry>
 	<entry key="L01">Loan Account Creation Failed</entry>
 	<entry key="L02">Customer is not Eligible</entry>
@@ -117,4 +117,6 @@
 	<entry key="L05">Invalid Loan Term. Refer to Terms and Conditions</entry>
 	<entry key="L06">Repayment Not allowed before {REPDAYS} days. Retry after {REPDAYS} days</entry>
 	<entry key="L07">Loan Creation Failed, there is an Existing active Loan</entry>
+	<entry key="L08">Loan Amount Exceeds Higher Limit</entry>
+	<entry key="L09">Loan Amount Exceeds Less Lower Amount</entry>
 </properties>

@@ -253,7 +253,7 @@ public class AccountAPI
         else if (request.getAccountNo() == null || request.getPhoneNumber() == null)
         {
             outcome.put("responseCode", 12);
-            outcome.put("responseTxt", "missing validation parameter");
+            outcome.put("responseTxt", "missing validation parameter[account or phone number]");
         }
         else if (request.getPeriod() == null || request.getTerm() == null)
         {

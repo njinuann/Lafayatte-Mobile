@@ -7,9 +7,9 @@
     <property name="offline.jdbc.url" value="jdbc:sybase:Tds:10.70.1.66:10000/xapi_offline" />
     <property name="offline.jdbc.user" value="sa"></property>
     <property name="offline.jdbc.paswd" value="911811301021121901511" />
-    <property name="init.conns" value="2" />
+    <property name="init.conns" value="5" />
     <property name="min.idle" value="2" />
-    <property name="max.conns" value="15" />
+    <property name="max.conns" value="30" />
     <property name="test.script" value="select getdate()" />
     <property name="core.schema" value="banking" />
     <property name="test.mode" value="true" />

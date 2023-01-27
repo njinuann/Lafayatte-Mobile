@@ -26,6 +26,9 @@ public class BLScoreCard
     private BigDecimal approvedScore = BigDecimal.ZERO;
     private BigDecimal lateInstalmentScore = BigDecimal.ZERO;
     private BigDecimal scorePoints = BigDecimal.ZERO;
+    private BigDecimal maxLimitAmount = BigDecimal.ZERO;
+    private BigDecimal minLimitAmount = BigDecimal.ZERO;
+
     private boolean borrower;
     private boolean classCodesAllowed;
     private boolean prevLoanRepaidTimely;
@@ -369,5 +372,25 @@ public class BLScoreCard
     public void setBlMainScoreCard(BLMainScoreCard blMainScoreCard)
     {
         this.blMainScoreCard = blMainScoreCard;
+    }
+
+    public BigDecimal getMaxLimitAmount()
+    {
+        return maxLimitAmount;
+    }
+
+    public void setMaxLimitAmount(BigDecimal maxLimitAmount)
+    {
+        this.maxLimitAmount = maxLimitAmount;
+    }
+
+    public BigDecimal getMinLimitAmount()
+    {
+        return minLimitAmount;
+    }
+
+    public void setMinLimitAmount(BigDecimal minLimitAmount)
+    {
+        this.minLimitAmount = minLimitAmount;
     }
 }

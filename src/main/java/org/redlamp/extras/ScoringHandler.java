@@ -11,17 +11,16 @@ import org.redlamp.util.XapiCodes;
 import org.redlamp.util.XapiPool;
 
 import java.math.BigDecimal;
+import java.math.MathContext;
 import java.math.RoundingMode;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
-public class ScoringHandler implements AutoCloseable, ISO, SQL {
+public class ScoringHandler implements AutoCloseable, ISO, SQL
+{
 
     private Connection conn;
     private StringBuilder builder;
@@ -32,33 +31,51 @@ public class ScoringHandler implements AutoCloseable, ISO, SQL {
     private long startTime;
 
 
-    public ScoringHandler() {
-        try {
+    public ScoringHandler()
+    {
+        try
+        {
             setBuilder(new StringBuilder());
             conn = XapiPool.getConnection();
             setCrCaller(new CRCaller());
             setStartTime(System.currentTimeMillis());
-        } catch (SQLException ex) {
+        } catch (SQLException ex)
+        {
             ApiLogger.getLogger().error(ex);
         }
     }
 
     @Override
-    public void close() {
-        try {
+    public void close()
+    {
+        try
+        {
             if (conn != null)
                 conn.close();
-        } catch (SQLException e) {
+        } catch (SQLException e)
+        {
             ApiLogger.getLogger().error(e);
         }
     }
 
-    public static boolean isBlank(Object object) {
+    public static boolean isBlank(Object object)
+    {
         return object == null || "".equals(String.valueOf(object).trim()) || "null".equals(String.valueOf(object).trim())
                 || String.valueOf(object).trim().toLowerCase().contains("---select");
     }
 
-    public Map<String, Object> processScore(LoanRequest request) {
+    public Map<String, Object> processScore(LoanRequest request)
+    {
+        try
+        {
+            if (conn == null || conn.isClosed())
+            {
+                conn = XapiPool.getConnection();
+            }
+        } catch (Exception ex)
+        {
+            ApiLogger.getLogger().error(ex);
+        }
         setBlScoreCard(getCrCaller().getBlScoreCard());
         BigDecimal approach1ScoreAmount = BigDecimal.ZERO, approach2ScoreAmount = BigDecimal.ZERO,
                 minApproachOneTwoMaxDepositorLnAmount = BigDecimal.ZERO, approvedScoreAmount = BigDecimal.ZERO,
@@ -75,7 +92,8 @@ public class ScoringHandler implements AutoCloseable, ISO, SQL {
         BLAccount blAccount = queryRegistered(request.getAccountNo(), request.getPhoneNumber());
         System.out.println("getting account>>>>>>>>>>>>>>>>>>>>>>>>> " + blAccount.getAccountNumber());
         getCrCaller().setCall("blAccount", blAccount);
-        if (!isBlank(blAccount.getAccountNumber())) {
+        if (!isBlank(blAccount.getAccountNumber()))
+        {
             boolean lastLoanRepaidTimely;
             boolean hasVoluntaryDeposit = true;
 
@@ -93,6 +111,11 @@ public class ScoringHandler implements AutoCloseable, ISO, SQL {
             boolean isClassCodeAllowed = checkEligibleClasses(blAccount);
             getCrCaller().setCall("isClassCodeAllowed", isClassCodeAllowed);
 
+            /*check if account has been active for over 3 months*/
+            boolean activeOverThreeMonths = checkActiveOverThreeMonths(blAccount);
+            getCrCaller().setCall("checkActiveOverThreeMonths", activeOverThreeMonths);
+            System.err.println(">>>>>>>>>>>>>>>>>>> activeOverThreeMonths " + activeOverThreeMonths);
+
             /*check if they had a previous digital loan and assign cycleScore*/
             boolean hasPreviousDigitalLoan = hasPreviousDigitalLoan(blAccount);
             getCrCaller().setCall("hasPreviousDigitalLoan", hasPreviousDigitalLoan);
@@ -103,23 +126,38 @@ public class ScoringHandler implements AutoCloseable, ISO, SQL {
             boolean hasPreviousNonDigitalLoan = hasPreviousNonDigitalLoan(blAccount);
             getCrCaller().setCall("hasPreviousNonDigitalLoan", hasPreviousNonDigitalLoan);
 
-            if (hasPreviousNonDigitalLoan) {
+            if (hasPreviousNonDigitalLoan)
+            {
                 //check if there was timely loan repayment in the last non-digital loan
                 lastLoanRepaidTimely = lastLoanRepaidTimely(blAccount.getRimNo());
-            } else {
+            }
+            else
+            {
                 lastLoanRepaidTimely = true;
             }
             getCrCaller().setCall("lastLoanRepaidTimely", lastLoanRepaidTimely);
 
             //check if there is voluntary deposits for the last 3 months
-            for (BLScoreParameter blScoreParameter : getTxnForPeriod(blAccount, XapiPool.dpAveVolumeMonths.intValue())) {
-                getCrCaller().setCall("Txn For Month", blScoreParameter.getNoOfTxn() + " No of deposit for month " + blScoreParameter.getTxnMonth());
-                if (blScoreParameter.getNoOfTxn() == 0) //evaluate
+            ArrayList<BLScoreParameter> voluntaryDepositObject = getTxnForPeriod(blAccount, XapiPool.dpAveVolumeMonths.intValue());
+            System.err.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> voluntaryDepositObject.size " + voluntaryDepositObject.size());
+            if (Objects.equals(XapiPool.dpAveVolumeMonths.intValue(), voluntaryDepositObject.size()))
+            //if (XapiPool.dpAveVolumeMonths.intValue() > voluntaryDepositObject.size())
+            {
+
+                for (BLScoreParameter blScoreParameter : voluntaryDepositObject)
                 {
-                    //change to report false just in case it gets 0 for any month
-                    hasVoluntaryDeposit = false;
-                    break;
+                    getCrCaller().setCall("Txn For Month", blScoreParameter.getNoOfTxn() + " No of deposit for month " + blScoreParameter.getTxnMonth());
+                    if (blScoreParameter.getNoOfTxn() == 0) //evaluate
+                    {
+                        //change to report false just in case it gets 0 for any month
+                        hasVoluntaryDeposit = false;
+                        break;
+                    }
                 }
+            }
+            else
+            {
+                hasVoluntaryDeposit = false;
             }
             getCrCaller().setCall("hasVoluntaryDeposit", hasVoluntaryDeposit);
 
@@ -130,88 +168,125 @@ public class ScoringHandler implements AutoCloseable, ISO, SQL {
             getCrCaller().setCall("isClassCodeAllowed", isClassCodeAllowed);
             getCrCaller().setCall("hasVoluntaryDepositLast3Months", hasVoluntaryDeposit);
             getCrCaller().setCall("lastLoanRepaidTimely", lastLoanRepaidTimely);
+            getCrCaller().setCall("activeOverThreeMonths", activeOverThreeMonths);
 
             //check if the customer is allowed
-            if (isClassCodeAllowed) {
-                if (lastLoanRepaidTimely) {
-                    if (hasVoluntaryDeposit) {
-                        // approach 1
-                        //start Variable A - rewarding Depositors
-                        BigDecimal depositorScore = checkDepositPerPeriodScore(blAccount.getRimNo());
-                        getBlScoreCard().setDepositorScore(depositorScore);
-                        getCrCaller().setCall("Variable A - depositorScore ", depositorScore);
+            System.err.println("activeOverThreeMonths " + activeOverThreeMonths);
+            if (activeOverThreeMonths)
+            {
+                if (isClassCodeAllowed)
+                {
+                    if (lastLoanRepaidTimely)
+                    {
+                        if (hasVoluntaryDeposit)
+                        {
+                            // approach 1
+                            //start Variable A - rewarding Depositors
+                            BigDecimal depositorScore = checkDepositPerPeriodScore(blAccount.getRimNo());
+                            getBlScoreCard().setDepositorScore(depositorScore);
+                            getCrCaller().setCall("Variable A - depositorScore ", depositorScore);
 
-                        /*start Variable B - Get the average volume of net deposits - for every month; deposits - loans */
-                        //check for 3 months
-                        BigDecimal averageDepositVlmScore = checkAveDepositVolumeScore(blAccount.getRimNo(), XapiPool.dpAveVolumeMonths.intValue());
-                        getBlScoreCard().setAverageVlmScore(averageDepositVlmScore);
-                        getCrCaller().setCall("Variable B - averageVlmScore ", averageDepositVlmScore);
+                            /*start Variable B - Get the average volume of net deposits - for every month; deposits - loans */
+                            //check for 3 months
+                            BigDecimal averageDepositVlmScore = checkAveDepositVolumeScore(blAccount.getRimNo(), XapiPool.dpAveVolumeMonths.intValue());
+                            getBlScoreCard().setAverageVlmScore(averageDepositVlmScore);
+                            getCrCaller().setCall("Variable B - averageVlmScore ", averageDepositVlmScore);
 
-                        //start Variable c - check Repayment behaviour
-                        BigDecimal RepaymentScore = hasPreviousDigitalLoan ? checkRepaymentScore(blAccount.getRimNo()) : BigDecimal.ONE;
-                        getBlScoreCard().setRepaymentScore(RepaymentScore);
-                        getCrCaller().setCall("Variable C - RepaymentScore ", RepaymentScore);
-                        // END OF APPROACH 1
+                            //start Variable c - check Repayment behaviour
+                            BigDecimal RepaymentScore = hasPreviousDigitalLoan ? checkRepaymentScore(blAccount.getRimNo()) : BigDecimal.ONE;
+                            getBlScoreCard().setRepaymentScore(RepaymentScore);
+                            getCrCaller().setCall("Variable C - RepaymentScore ", RepaymentScore);
+                            // END OF APPROACH 1
 
-                        // APPROACH 2
-                        BigDecimal minAverageBalance = checkMinAverageVolumeScore(blAccount.getRimNo(), XapiPool.dpAveVolumeMonths.intValue());
+                            // APPROACH 2
+                            BigDecimal minAverageBalance = checkMinAverageVolumeScore(blAccount.getRimNo(), cycleScore);
 //                BigDecimal minAverageBalanceScored = (minAverageBalance.compareTo(XapiPool.minCycleDpEvalAmount) > 0)
 //                        ? minAverageBalance.multiply(cycleScore) : BigDecimal.ZERO;
-                        getCrCaller().setCall("Minimum AVG BAL of last " + XapiPool.dpAveVolumeMonths.intValue() + " Months", minAverageBalance);
-                        BigDecimal minAverageBalanceScored = minAverageBalance.multiply(cycleScore);
-                        getCrCaller().setCall("Multiply By Assigned CycleScore (" + cycleScore + ")", minAverageBalanceScored);
-                        // END OF APPROACH 2
+                            getCrCaller().setCall("Minimum AVG BAL of last " + XapiPool.dpAveVolumeMonths.intValue() + " Months", minAverageBalance);
+//                            BigDecimal minAverageBalanceScored = minAverageBalance.multiply(cycleScore);
+                            BigDecimal minAverageBalanceScored = minAverageBalance; // no need to multiply again since it was passed
+                            getCrCaller().setCall("Multiply By Assigned CycleScore (" + cycleScore + ")", minAverageBalanceScored);
+                            // END OF APPROACH 2
 
-                        // APPROACH 1 Scored value
-                        approach1ScoreAmount = depositorScore.multiply(averageDepositVlmScore).multiply(RepaymentScore);  // APPROACH 1 Scored value
-                        getBlScoreCard().setFinalScore1(approach1ScoreAmount);
-                        getCrCaller().setCall("ApproachOneScoreAmount-(AxBxC) ", approach1ScoreAmount);
+                            // APPROACH 1 Scored value
+                            approach1ScoreAmount = depositorScore.multiply(averageDepositVlmScore).multiply(RepaymentScore);  // APPROACH 1 Scored value
+                            getBlScoreCard().setFinalScore1(approach1ScoreAmount);
+                            getCrCaller().setCall("ApproachOneScoreAmount-(AxBxC) ", approach1ScoreAmount);
 
-                        // APPROACH 2 Scored value
-                        approach2ScoreAmount = minAverageBalanceScored;
-                        getBlScoreCard().setFinalScoreAvg(approach2ScoreAmount);
-                        getCrCaller().setCall("ApproachTwoScoreAmount", minAverageBalanceScored);
-                        BigDecimal maxDepositorLnAmount = hasPreviousDigitalLoan
-                                ? XapiPool.maxDepositorLnAmount.multiply(new BigDecimal(2))
-                                : XapiPool.maxDepositorLnAmount;
-                        getCrCaller().setCall("maxDepositorLnAmount", maxDepositorLnAmount);
-                        getCrCaller().setCall("minDepositorLnAmount", XapiPool.minDepositorLnAmount);
+                            // APPROACH 2 Scored value
+                            approach2ScoreAmount = minAverageBalanceScored;
+                            getBlScoreCard().setFinalScoreAvg(approach2ScoreAmount);
+                            getCrCaller().setCall("ApproachTwoScoreAmount", minAverageBalanceScored);
+                            BigDecimal maxDepositorLnAmount = hasPreviousDigitalLoan
+                                    ? XapiPool.maxDepositorLnAmount.multiply(new BigDecimal(2))
+                                    : XapiPool.maxDepositorLnAmount;
+                            getCrCaller().setCall("maxDepositorLnAmount", maxDepositorLnAmount);
+                            getCrCaller().setCall("minDepositorLnAmount", XapiPool.minDepositorLnAmount);
 
-                        // get the minimum of both approaches
-                        minApproachOneTwoMaxDepositorLnAmount = approach1ScoreAmount.min(approach2ScoreAmount).min(maxDepositorLnAmount);
-                        getBlScoreCard().setOverallScore(minApproachOneTwoMaxDepositorLnAmount);
-                        getCrCaller().setCall("minApproachOneTwoMaxDepositorLnAmount", minApproachOneTwoMaxDepositorLnAmount);
+                            // get the minimum of both approaches
+                            minApproachOneTwoMaxDepositorLnAmount = approach1ScoreAmount.min(approach2ScoreAmount).min(maxDepositorLnAmount);
+                            getBlScoreCard().setOverallScore(minApproachOneTwoMaxDepositorLnAmount);
+                            getCrCaller().setCall("minApproachOneTwoMaxDepositorLnAmount", minApproachOneTwoMaxDepositorLnAmount);
 
-                        if (minApproachOneTwoMaxDepositorLnAmount.compareTo(maxDepositorLnAmount) > 0) {
-                            approvedScoreAmount = maxDepositorLnAmount;
-                        } else if (minApproachOneTwoMaxDepositorLnAmount.compareTo(XapiPool.minDepositorLnAmount) < 0) {
-                            approvedScoreAmount = BigDecimal.ZERO;
-                            additionalResponseText = "[Eligible Amount Less Than Minimum Allowed]";
-                        } else {
-                            approvedScoreAmount = minApproachOneTwoMaxDepositorLnAmount;
+                            if (minApproachOneTwoMaxDepositorLnAmount.compareTo(maxDepositorLnAmount) > 0)
+                            {
+                                approvedScoreAmount = maxDepositorLnAmount;
+                            }
+                            else if (minApproachOneTwoMaxDepositorLnAmount.compareTo(XapiPool.minDepositorLnAmount) < 0)
+                            {
+                                approvedScoreAmount = BigDecimal.ZERO;
+                                additionalResponseText = "[Eligible Amount Less Than Minimum Allowed]";
+                            }
+                            else
+                            {
+                                approvedScoreAmount = minApproachOneTwoMaxDepositorLnAmount;
+                            }
+                            getCrCaller().setCall("approvedScoreAmount", approvedScoreAmount);
                         }
-                        getCrCaller().setCall("approvedScoreAmount", approvedScoreAmount);
-                    } else {
-                        additionalResponseText = "[Voluntary Deposits Not Satisfied]";
+                        else
+                        {
+                            additionalResponseText = "[Voluntary Deposits Not Satisfied]";
+                        }
                     }
-                } else {
-                    additionalResponseText = "[Last Loan Not Timely Repaid]";
+                    else
+                    {
+                        additionalResponseText = "[Last Loan Not Timely Repaid]";
+                    }
                 }
-            } else {
-                additionalResponseText = "[Class Code Not Allowed]";
+                else
+                {
+                    additionalResponseText = "[Class Code Not Allowed]";
+                }
+            }
+            else
+            {
+                additionalResponseText = "[Customer Active Less Than Allowed Time]";
             }
 //            } else {
 //                approvedScoreAmount = BigDecimal.ZERO;
 //            }
 
-            if (BigDecimal.ZERO.compareTo(approvedScoreAmount) >= 0) {
+            if (BigDecimal.ZERO.compareTo(approvedScoreAmount) >= 0)
+            {
                 list.add(map);
                 response.put("responseCode", CUST_NOT_ELIGIBLE);
-            } else {
+            }
+            else
+            {
+                approvedScoreAmount = roundedAmount(approvedScoreAmount.intValue());
                 getBlScoreCard().setAccountNumber(blAccount.getAccountNumber());
                 getBlScoreCard().setAmount(approvedScoreAmount);
+                getCrCaller().getBlScoreCard().setApprovedScore(approvedScoreAmount);
+
+                BigDecimal rate = currentRate(XapiPool.depositorLoanClassCode);
+
                 map.put("Eligible_Amount", getBlScoreCard().getAmount());
                 map.put("Account", getBlScoreCard().getAccountNumber());
+                map.put("MaxAmount", approvedScoreAmount);
+                map.put("MinAmount", XapiPool.minDepositorLnAmount);
+                map.put("Rate", isBlank(rate) ? BigDecimal.ZERO : rate);
+
+                //map.put("MaxAmount", approvedScoreAmount.compareTo(XapiPool.maxDepositorLnAmount) >= 0 ? approvedScoreAmount : XapiPool.maxDepositorLnAmount);
                 //  map.put("Period", XapiPool.defaultLoanPeriod);
                 //   map.put("Term", XapiPool.minLoanterm);
                 list.add(map);
@@ -219,17 +294,27 @@ public class ScoringHandler implements AutoCloseable, ISO, SQL {
                 additionalResponseText = "";
             }
 
-        } else {
+        }
+        else
+        {
+            getBlScoreCard().setAccountNumber(request.getAccountNo());
+            getBlScoreCard().setPhoneNumber(request.getPhoneNumber());
+            getBlScoreCard().setLoanScoreTpe("Depositor");
+            getBlScoreCard().setAccountType("n/a");
+            getBlScoreCard().setRimNumber(0L);
             response.put("responseCode", CUST_NOT_ELIGIBLE);
             additionalResponseText = "[No Registration Found]";
         }
 
-        if (CUST_NOT_ELIGIBLE.equals(response.get("responseCode"))) {
+        if (CUST_NOT_ELIGIBLE.equals(response.get("responseCode")))
+        {
             map.put("Eligible_Amount", BigDecimal.ZERO);
             map.put("Account", blScoreCard.getAccountNumber());
             list.add(map);
             response.put("responseTxt", XapiCodes.getErrorDesc(response.get("responseCode")));
-        } else {
+        }
+        else
+        {
             response.put("responseTxt", "Customer is Eligible");
         }
 
@@ -245,30 +330,62 @@ public class ScoringHandler implements AutoCloseable, ISO, SQL {
         return response;
     }
 
-    public BigDecimal roundedAmount(int value) {
+    public BigDecimal currentRate(Long classCode)
+    {
+        BigDecimal rate = BigDecimal.ZERO;
+        try (Statement statement = conn.createStatement();
+             ResultSet rs = statement.executeQuery("select aa.rate , bb.accr_basis from " + XapiCodes.coreschema + "..ad_gb_rate_history aa, " + XapiCodes.coreschema + "..ad_ln_cls_int_opt bb "
+                     + " where aa.index_id = bb.index_id  and bb.class_code  =" + classCode + " and aa.ptid = (select max(ptid) from " + XapiCodes.coreschema + "..ad_gb_rate_history where index_id =aa.index_id)"))
+        {
+            if (rs.next())
+            {
+                BigDecimal classRate = rs.getBigDecimal("rate");
+                rate = classRate.multiply((new BigDecimal(30).divide(new BigDecimal(360), MathContext.DECIMAL128))).setScale(2, RoundingMode.UP);
+
+            }
+
+        } catch (Exception e1)
+        {
+            ApiLogger.getLogger().error(e1);
+        }
+        return rate;
+    }
+
+    public BigDecimal roundedAmount(int value)
+    {
         return new BigDecimal((value / 1000) * 1000);
     }
 
-    public void windUp() {
+    public void windUp()
+    {
         writeToLog();
 
     }
 
-    private void writeToLog() {
-        //ApiLogger.getLogger().error(e1);
-        setEndTime(System.currentTimeMillis());
-        getCrCaller().setDuration(String.valueOf(getEndTime() - getStartTime()) + " Ms");
+    private void writeToLog()
+    {
+        try
+        {
+            //ApiLogger.getLogger().error(e1);
+            setEndTime(System.currentTimeMillis());
+            getCrCaller().setDuration(String.valueOf(getEndTime() - getStartTime()) + " Ms");
 
 
-        logLoanScore(getCrCaller());
-        new Thread(new ThreadLogger(new ApiLogger(), "<transaction>" + "\r\n\t" + getCrCaller() + "</transaction>")).start();
+            logLoanScore(getCrCaller());
+            new Thread(new ThreadLogger(new ApiLogger(), "<transaction>" + "\r\n\t" + getCrCaller() + "</transaction>")).start();
 
-        // APMain.cqsLog.logEvent(gettXCaller());
-        setCrCaller(new CRCaller());
+            // APMain.cqsLog.logEvent(gettXCaller());
+            setCrCaller(new CRCaller());
+            close();
+        } catch (Exception ex)
+        {
+            ApiLogger.getLogger().error(ex);
+        }
     }
 
-    private boolean logLoanScore(CRCaller crCaller) {
-        ApiLogger.getLogger().info("crCaller.getXapiRespCode()",crCaller.getXapiRespCode());
+    private boolean logLoanScore(CRCaller crCaller)
+    {
+        ApiLogger.getLogger().info("crCaller.getXapiRespCode()", crCaller.getXapiRespCode());
 
         String saveLoanScore = "INSERT INTO " + XapiCodes.xapiSchema + "..E_LOAN_SCORE " +
                 "(ACCOUNT_NO, ACCT_TYPE, RIM_NO, PHONE_NUMBER, SCORE_TYPE, AMOUNT, CYCLE_SCORE, DEPOSITOR_SCORE, " +
@@ -276,13 +393,20 @@ public class ScoringHandler implements AutoCloseable, ISO, SQL {
                 "BORROWER, CLASS_CODE_ALLOWED, PREV_TIMELY_REPAYMENT, VOLUNTARY_DESPOSITS, VALID_CYCLE, REQ_MIN_INSTALMENTS, " +
                 "LOAN_RESTRUCTRED, CLOSURE_MONTH_VALID, PREV_DEFAULTED_LOAN7DAYS, PREV_DEFAULTED_LOAN30DAYS, CURRENT_DELAYED_PAYMENT, " +
                 "MAX_LOAN_PER_YEAR, DELAYED_CURRENT_INSTALEMENT, RESPONSE_CODE, RESPONSE_MESSAGE, CREATE_DT )" +
-                "VALUES('" + crCaller.getBlScoreCard().getAccountNumber() + "','" + crCaller.getBlScoreCard().getAccountType() + "'," +
-                "" + crCaller.getBlScoreCard().getRimNumber() + ",'" + crCaller.getBlScoreCard().getPhoneNumber() + "'," +
-                "'" + crCaller.getBlScoreCard().getLoanScoreTpe() + "'," + crCaller.getBlScoreCard().getAmount() + "," +
-                "" + crCaller.getBlScoreCard().getCycleScore() + "," + crCaller.getBlScoreCard().getDepositorScore() + "," +
-                "" + crCaller.getBlScoreCard().getAverageVlmScore() + "," + crCaller.getBlScoreCard().getRepaymentScore() + "," +
-                "" + crCaller.getBlScoreCard().getFinalScore1() + ", " + crCaller.getBlScoreCard().getHistoryScore() + "," +
-                "" + crCaller.getBlScoreCard().getApprovedScore() + "," + crCaller.getBlScoreCard().getLateInstalmentScore() + "," +
+                "VALUES('" + crCaller.getBlScoreCard().getAccountNumber() + "'," +
+                "'" + crCaller.getBlScoreCard().getAccountType() + "'," +
+                "" + crCaller.getBlScoreCard().getRimNumber() + "," +
+                "'" + crCaller.getBlScoreCard().getPhoneNumber().trim() + "'," +
+                "'" + crCaller.getBlScoreCard().getLoanScoreTpe() + "'," +
+                "" + crCaller.getBlScoreCard().getAmount().setScale(0, 2) + "," +
+                "" + crCaller.getBlScoreCard().getCycleScore().setScale(0, 2) + "," +
+                "" + crCaller.getBlScoreCard().getDepositorScore().setScale(0, 2) + "," +
+                "" + crCaller.getBlScoreCard().getAverageVlmScore().setScale(0, 2) + "," +
+                "" + crCaller.getBlScoreCard().getRepaymentScore().setScale(0, 2) + "," +
+                "" + crCaller.getBlScoreCard().getFinalScore1().setScale(0, 2) + ", " +
+                "" + crCaller.getBlScoreCard().getHistoryScore().setScale(0, 2) + "," +
+                "" + crCaller.getBlScoreCard().getApprovedScore().setScale(0, 2) + "," +
+                "" + crCaller.getBlScoreCard().getLateInstalmentScore().setScale(0, 2) + "," +
                 "'" + yesNo(crCaller.getBlScoreCard().isBorrower()) + "'," +
                 "'" + yesNo(crCaller.getBlScoreCard().isClassCodesAllowed()) + "'," +
                 "'" + yesNo(crCaller.getBlScoreCard().isPrevLoanRepaidTimely()) + "'," +
@@ -296,24 +420,38 @@ public class ScoringHandler implements AutoCloseable, ISO, SQL {
                 "'" + yesNo(crCaller.getBlScoreCard().isHasCurrentDelayedPayment()) + "'," +
                 "'" + yesNo(crCaller.getBlScoreCard().isHasMaxLoansPerYear()) + "'," +
                 "'" + yesNo(crCaller.getBlScoreCard().isHasDelayedCurrentInstallment()) + "'," +
-                "'" + crCaller.getXapiRespCode() + "','" + XapiCodes.getErrorDesc(crCaller.getXapiRespCode()) + "',getdate())";
+                "'" + crCaller.getXapiRespCode() + "','" + getCrCaller().getXapiRespMsg() + "',getdate())";
 
         ApiLogger.getLogger().info(saveLoanScore);
-        try (Statement statement = conn.createStatement()) {
+        try
+        {
+            if (conn == null || conn.isClosed())
+            {
+                conn = XapiPool.getConnection();
+            }
+        } catch (Exception ex)
+        {
+            ApiLogger.getLogger().error(ex);
+        }
+        try (Statement statement = conn.createStatement())
+        {
             statement.executeUpdate(saveLoanScore);
             return true;
-        } catch (Exception ex) {
+        } catch (Exception ex)
+        {
             ApiLogger.getLogger().error(ex);
             return false;
         }
-
     }
 
-    public String yesNo(boolean checkVal) {
+    public String yesNo(boolean checkVal)
+    {
         return checkVal ? "Y" : "N";
     }
 
-    public BLAccount queryRegistered(String acctNo, String phoneNo) {
+
+    public BLAccount queryRegistered(String acctNo, String phoneNo)
+    {
 
         BLAccount bLAccount = new BLAccount();
 
@@ -329,9 +467,11 @@ public class ScoringHandler implements AutoCloseable, ISO, SQL {
         ApiLogger.getLogger().debug("queryRegistered \n\r\t " + query);
 
         try (Statement statement = conn.createStatement();
-             ResultSet rs = statement.executeQuery(query)) {
+             ResultSet rs = statement.executeQuery(query))
+        {
 
-            if (rs.next()) {
+            if (rs.next())
+            {
                 bLAccount.setAccountType(rs.getString("acct_type").trim());
                 bLAccount.setAccountNumber(rs.getString("acct_no").trim());
                 bLAccount.setRimNo(rs.getLong("rim_no"));
@@ -340,24 +480,33 @@ public class ScoringHandler implements AutoCloseable, ISO, SQL {
             }
 
 
-        } catch (Exception e1) {
+        } catch (Exception e1)
+        {
             ApiLogger.getLogger().error(e1);
         }
         return bLAccount;
     }
 
-    public boolean checkEligibleClasses(BLAccount bLAccount) {
+    public boolean checkEligibleClasses(BLAccount bLAccount)
+    {
         String query = "select dd.acct_no " +
                 "from  " + XapiCodes.coreschema + "..dp_display dd,  " + XapiCodes.coreschema + "..rm_acct rm " +
                 "where dd.rim_no=rm.rim_no and dd.status='Active' and rm.status='Active' " +
                 "and rm.class_code in (" + XapiPool.allowedRimClassDepositor + " ) " +
-                "and dd.class_code in (" + XapiPool.allowedDpClass + ")   and rm.rim_no=" + bLAccount.getRimNo() + " ";
+                "and dd.class_code in (" + XapiPool.allowedDpClass + ")  and dd.acct_no = '" + bLAccount.getAccountNumber() + "' and rm.rim_no=" + bLAccount.getRimNo() + " ";
         //and dd.rim_no not in (select rim_no from  " + XapiCodes.coreschema + "..ln_display where  rim_no=dd.rim_no and status ='Active'
         return checkIfExists("checkEligibleClasses", query);
 
     }
 
-    public boolean hasPreviousDigitalLoan(BLAccount bLAccount) {
+    public boolean checkActiveOverThreeMonths(BLAccount bLAccount)
+    {
+        String query = "select * from " + XapiCodes.coreschema + "..dp_acct where acct_no ='" + bLAccount.getAccountNumber() + "' and datediff(MM,create_dt,(select dateadd(dd,1,last_to_dt) from " + XapiCodes.coreschema + "..ov_control)) >3  ";
+        return checkIfExists("checkActiveOverThreeMonths", query);
+    }
+
+    public boolean hasPreviousDigitalLoan(BLAccount bLAccount)
+    {
         String query = "select acct_no from " + XapiCodes.coreschema + "..ln_display " +
                 "where class_code in (" + XapiPool.borrowerLoanClassCode + ") " +
                 "and rim_no = (select b.rim_no from  " + XapiCodes.coreschema + "..gb_user_defined a,  " +
@@ -371,7 +520,8 @@ public class ScoringHandler implements AutoCloseable, ISO, SQL {
     }
 
     /*this used to be checkCycle*/
-    public boolean hasPreviousNonDigitalLoan(BLAccount bLAccount) {
+    public boolean hasPreviousNonDigitalLoan(BLAccount bLAccount)
+    {
         String query = "select acct_no from " + XapiCodes.coreschema + "..ln_display " +
                 "where class_code not in  (" + XapiPool.borrowerLoanClassCode + ") " +
                 "and rim_no = (select b.rim_no from  " + XapiCodes.coreschema + "..gb_user_defined a,  " +
@@ -394,11 +544,12 @@ public class ScoringHandler implements AutoCloseable, ISO, SQL {
 //
 //    }
 
-    public boolean lastLoanRepaidTimely(Long rimNo) {
+    public boolean lastLoanRepaidTimely(Long rimNo)
+    {
         boolean lastLoanRepaidTimely = true;
         /*get no of days late for every instalment of this customer's last closed loan*/
-        String query = "select aa.acct_no,aa.create_dt,aa.amt,cc.pmt_due_dt,aa.posting_dt_tm," +
-                "cc.type, datediff(dd,cc.pmt_due_dt,aa.posting_dt_tm) noOfLateDays " +
+        String query = "select aa.acct_no,aa.create_dt,aa.amt,cc.pmt_due_dt,aa.effective_dt," +
+                "cc.type, datediff(dd,cc.pmt_due_dt,aa.effective_dt) noOfLateDays " +
                 "from " + XapiCodes.coreschema + "..ln_history aa," + XapiCodes.coreschema + "..ln_bill_map bb ," +
                 "" + XapiCodes.coreschema + "..ln_bill cc " +
                 "where aa.acct_no = (select acct_no from " + XapiCodes.coreschema + "..ln_acct bb " +
@@ -406,71 +557,92 @@ public class ScoringHandler implements AutoCloseable, ISO, SQL {
                 "where rim_no = " + rimNo + " and status='Closed' and class_code not in (" + XapiPool.borrowerLoanClassCode + "))) " +
                 "and aa.acct_no = bb.acct_no and aa.acct_no=cc.acct_no and bb.acct_no=cc.acct_no " +
                 "and bb.bill_id_no = cc.bill_id_no and bb.sub_no = cc.sub_no and bb.history_ptid = aa.ptid " +
-                "and datediff(dd,cc.pmt_due_dt,aa.posting_dt_tm)>0 order by aa.posting_dt_tm desc";
+                "and datediff(dd,cc.pmt_due_dt,aa.effective_dt)>0 order by aa.effective_dt desc";
 
         ApiLogger.getLogger().debug("lastLoanRepaidTimely \n\r\t " + query);
-        try (Statement statement = conn.createStatement(); ResultSet rs = statement.executeQuery(query)) {
-            while (rs.next()) {
+        try (Statement statement = conn.createStatement(); ResultSet rs = statement.executeQuery(query))
+        {
+            while (rs.next())
+            {
                 int noOfLateDays = rs.getInt("noOfLateDays");
-                if (noOfLateDays > 0) {
+                System.err.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> " + noOfLateDays);
+                if (noOfLateDays > 0)
+                {
                     lastLoanRepaidTimely = false;
                     break;
                 }
             }
-        } catch (Exception e1) {
+        } catch (Exception e1)
+        {
             ApiLogger.getLogger().error(e1);
         }
+        System.err.println(">>>>>>>>>>>>>>>lastLoanRepaidTimely>>>>>>>>>>>>>>>>>>>> " + lastLoanRepaidTimely);
         return lastLoanRepaidTimely;
     }
 
 
-    public ArrayList<BLScoreParameter> getTxnForPeriod(BLAccount blAccount, int noOfMonths) {
-        String query = "select distinct sd.Txmonth,Txyear,sd.diff,sd.acct_no,noTxn " +
-                "from " +
-                "(select (select dateadd(dd,1,last_to_dt) from  " + XapiCodes.coreschema + "..ov_control) today, " +
-                "create_dt,month(create_dt) Txmonth,year(create_dt) Txyear," +
-                "datediff(MM,create_dt,(select dateadd(dd,1,last_to_dt) from " + XapiCodes.coreschema + "..ov_control)) diff" +
-                ",acct_no from  " + XapiCodes.coreschema + "..dp_history dh where acct_no ='" + blAccount.getAccountNumber() + "' " +
-                "and tran_code in (" + XapiPool.dpTranCode + ") and datediff(MM,create_dt,(select dateadd(dd,1,last_to_dt) " +
-                "from " + XapiCodes.coreschema + "..ov_control)) between 1 and " + noOfMonths + ") sd " +
-                "left join " +
-                "(select count(*) noTxn,month(create_dt) Txmonth,acct_no from " + XapiCodes.coreschema + "..dp_history " +
-                "where acct_no ='" + blAccount.getAccountNumber() + "' and tran_code in (" + XapiPool.dpTranCode + ") " +
-                "and datediff(MM,create_dt,(select dateadd(dd,1,last_to_dt) from  " + XapiCodes.coreschema + "..ov_control)) " +
-                "between 1 and " + noOfMonths + " group by month(create_dt),acct_no) sf on sd.acct_no = sf.acct_no " +
-                "where sd.Txmonth = sf.Txmonth order by diff";
+    public ArrayList<BLScoreParameter> getTxnForPeriod(BLAccount blAccount, int noOfMonths)
+    {
+//        String query = "select distinct sd.Txmonth,Txyear,sd.diff,sd.acct_no,noTxn " +
+//                "from " +
+//                "(select (select dateadd(dd,1,last_to_dt) from  " + XapiCodes.coreschema + "..ov_control) today, " +
+//                "create_dt,month(create_dt) Txmonth,year(create_dt) Txyear," +
+//                "datediff(MM,create_dt,(select dateadd(dd,1,last_to_dt) from " + XapiCodes.coreschema + "..ov_control)) diff" +
+//                ",acct_no from  " + XapiCodes.coreschema + "..dp_history dh where acct_no ='" + blAccount.getAccountNumber() + "' " +
+//                "and tran_code in (" + XapiPool.dpTranCode + ") and datediff(MM,create_dt,(select dateadd(dd,1,last_to_dt) " +
+//                "from " + XapiCodes.coreschema + "..ov_control)) between 1 and " + noOfMonths + ") sd " +
+//                "left join " +
+//                "(select count(*) noTxn,month(create_dt) Txmonth,acct_no from " + XapiCodes.coreschema + "..dp_history " +
+//                "where acct_no ='" + blAccount.getAccountNumber() + "' and tran_code in (" + XapiPool.dpTranCode + ") " +
+//                "and datediff(MM,create_dt,(select dateadd(dd,1,last_to_dt) from  " + XapiCodes.coreschema + "..ov_control)) " +
+//                "between 1 and " + noOfMonths + " group by month(create_dt),acct_no) sf on sd.acct_no = sf.acct_no " +
+//                "where sd.Txmonth = sf.Txmonth order by diff"; //cpmmented to cater for all accounts related to the rim
+        String query = "select distinct sd.Txmonth,Txyear,sd.diff, noTxn , sd.rim_no "
+                + " from (select (select dateadd(dd,1,last_to_dt) from  " + XapiCodes.coreschema + "..ov_control) today, dh.create_dt,month(dh.create_dt) Txmonth,year(dh.create_dt) Txyear,  datediff(MM,dh.create_dt,(select dateadd(dd,1,last_to_dt) from " + XapiCodes.coreschema + "..ov_control)) diff,dh.acct_no ,ad.rim_no   "
+                + " from  " + XapiCodes.coreschema + "..dp_history dh," + XapiCodes.coreschema + "..dp_acct ad  "
+                + " where dh.acct_no =ad.acct_no and ad.rim_no =" + blAccount.getRimNo() + " and ad.status ='Active' and dh.tran_code in (" + XapiPool.dpTranCode + ") and datediff(MM,dh.create_dt,(select dateadd(dd,1,last_to_dt) from " + XapiCodes.coreschema + "..ov_control)) between 1 and 3)  sd   "
+                + " left join (select count(*) noTxn,month(dh.create_dt) Txmonth,ad.rim_no  from " + XapiCodes.coreschema + "..dp_history dh," + XapiCodes.coreschema + "..dp_acct ad where dh.acct_no =ad.acct_no and ad.rim_no =" + blAccount.getRimNo() + " and ad.status ='Active' "
+                + " and tran_code in (" + XapiPool.dpTranCode + ")   and datediff(MM,dh.create_dt,(select dateadd(dd,1,last_to_dt) from  " + XapiCodes.coreschema + "..ov_control)) between 1 and 3    "
+                + " group by month(dh.create_dt),ad.rim_no) sf on sd.rim_no = sf.rim_no where sd.Txmonth = sf.Txmonth order by diff ";
 
         ArrayList<BLScoreParameter> blScoreParameters = new ArrayList<>();
         ApiLogger.getLogger().debug("check if there is voluntary deposits for the last 3 months \n\r\t " + query);
 
         try (Statement statement = conn.createStatement();
-             ResultSet rs = statement.executeQuery(query)) {
-            while (rs.next()) {
+             ResultSet rs = statement.executeQuery(query))
+        {
+            while (rs.next())
+            {
                 BLScoreParameter blScoreParameter = new BLScoreParameter();
                 blScoreParameter.setTxnMonth(rs.getLong("Txmonth"));
-                blScoreParameter.setAccountNumber(rs.getString("acct_no"));
+                // blScoreParameter.setAccountNumber(rs.getString("acct_no"));
                 blScoreParameter.setTxnYear(rs.getLong("Txyear"));
                 blScoreParameter.setNoOfTxn(rs.getLong("noTxn"));
                 blScoreParameter.setMntCounter(rs.getLong("diff"));
                 blScoreParameters.add(blScoreParameter);
             }
 
-        } catch (Exception e1) {
+        } catch (Exception e1)
+        {
             ApiLogger.getLogger().error(e1);
         }
 
         return blScoreParameters;
     }
 
-    public int getRoundedNumber(BigDecimal value) {
+    public int getRoundedNumber(BigDecimal value)
+    {
         int roundedNo = 0;
         try (Statement statement = conn.createStatement();
-             ResultSet rs = statement.executeQuery("select round(" + value + ", -3) as num")) {
-            if (rs.next()) {
+             ResultSet rs = statement.executeQuery("select round(" + value + ", -3) as num"))
+        {
+            if (rs.next())
+            {
                 roundedNo = rs.getInt("num");
             }
 
-        } catch (Exception e1) {
+        } catch (Exception e1)
+        {
             ApiLogger.getLogger().error(e1);
         }
 
@@ -533,7 +705,8 @@ public class ScoringHandler implements AutoCloseable, ISO, SQL {
 //        return verified;
 //    }
 
-    public BigDecimal checkRepaymentScore(Long rimNo) {
+    public BigDecimal checkRepaymentScore(Long rimNo)
+    {
         /*A loan can only be repaid Once; since we check the score sequentially,
         if any returns true, the remaining will fail*/
         BigDecimal score = BigDecimal.ZERO;
@@ -550,23 +723,32 @@ public class ScoringHandler implements AutoCloseable, ISO, SQL {
         boolean repaid1to3DaysLate = repaidIn5DaysToMat ? false : queryRepaymentScore(rimNo, 4);
         getCrCaller().setCall("repaid1to3DaysLate", repaid1to3DaysLate);
 
-        if (repaidIn14Days) {
+        if (repaidIn14Days)
+        {
             score = XapiPool.repmt14DaysScore;
-        } else if (repaidFrom14Daysto5DaysMat) {
+        }
+        else if (repaidFrom14Daysto5DaysMat)
+        {
             score = XapiPool.repmt25DaysScore;
-        } else if (repaidIn5DaysToMat) {
+        }
+        else if (repaidIn5DaysToMat)
+        {
             score = XapiPool.repmt30DaysScore;
-        } else if (repaid1to3DaysLate) {
+        }
+        else if (repaid1to3DaysLate)
+        {
             score = XapiPool.repmt3DaysLateDaysScore;
         }
         getCrCaller().setCall("CheckRepaymentScore", score);
         return score;
     }
 
-    public boolean queryRepaymentScore(Long rimNo, int repayedCriteria) {
+    public boolean queryRepaymentScore(Long rimNo, int repayedCriteria)
+    {
         boolean verified = false;
         String query = "";
-        if (repayedCriteria == 1) {
+        if (repayedCriteria == 1)
+        {
             /*Repaid in 2 weeks or less - i.e. repayment dt - create dt between 0 and 14 days*/
             query = "select bb.effective_dt repay_dt,cc.create_dt,datediff(dd,cc.create_dt,bb.effective_dt) repayDiff, bb.*, cc.* " +
                     "from " + XapiCodes.coreschema + "..ln_history bb," + XapiCodes.coreschema + "..ln_display cc " +
@@ -574,7 +756,9 @@ public class ScoringHandler implements AutoCloseable, ISO, SQL {
                     "where rim_no = " + rimNo + " and status='Closed' " +
                     "and bb.class_code in  (" + XapiPool.borrowerLoanClassCode + "," + XapiPool.borrowerLoanClassCode + ")) " +
                     "and tran_code in (345)  and datediff(dd, cc.create_dt, bb.effective_dt) between 0 and 14";
-        } else if (repayedCriteria == 2) {
+        }
+        else if (repayedCriteria == 2)
+        {
             /*Repaid from 2 weeks to 5 days before maturity i.e. repayment dt - create dt between 15 and ((Mat_DT-5 days)-Create_DT) days*/
             query = "select bb.effective_dt repay_dt,cc.create_dt,cc.mat_dt,datediff(dd,cc.create_dt,bb.effective_dt) repayDiff, " +
                     "dateadd(dd,-5,cc.mat_dt) fiveDaysToMat, datediff(dd, cc.create_dt, dateadd(dd,-5,cc.mat_dt)) repayDiffFiveDaysToMat, " +
@@ -584,7 +768,9 @@ public class ScoringHandler implements AutoCloseable, ISO, SQL {
                     "and bb.class_code in (" + XapiPool.borrowerLoanClassCode + "," + XapiPool.borrowerLoanClassCode + ")) " +
                     "and tran_code in (345) " +
                     "and datediff(dd, cc.create_dt, bb.effective_dt) between 15 and (datediff(dd, cc.create_dt, dateadd(dd,-5,cc.mat_dt)))";
-        } else if (repayedCriteria == 3) {
+        }
+        else if (repayedCriteria == 3)
+        {
             /*Repaid in the 5 days to the maturity i.e. maturity dt - repayment date between 1 and 5*/
             query = "select bb.effective_dt repay_dt,cc.create_dt,cc.mat_dt,datediff(dd,bb.effective_dt, cc.mat_dt) repayDiff, bb.*, cc.* " +
                     "from " + XapiCodes.coreschema + "..ln_history bb," + XapiCodes.coreschema + "..ln_display cc " +
@@ -592,7 +778,9 @@ public class ScoringHandler implements AutoCloseable, ISO, SQL {
                     "from " + XapiCodes.coreschema + "..ln_acct bb where rim_no = " + rimNo + " and status='Closed' " +
                     "and bb.class_code in (" + XapiPool.borrowerLoanClassCode + "," + XapiPool.borrowerLoanClassCode + ")) " +
                     "and tran_code in (345)  and datediff(dd, bb.effective_dt, cc.mat_dt) between 1 and 5";
-        } else if (repayedCriteria == 4) {
+        }
+        else if (repayedCriteria == 4)
+        {
             /*Repaid with 1 to 3 days late i.e. repayment date - maturity date between 1 and 3*/
             /*Also include freeze period of twice the number of late days i.e. reject this loan application*/
             /*( todaysDate - (loanRepayDate + (daysLate*2) ) ) >=1 */
@@ -615,9 +803,12 @@ public class ScoringHandler implements AutoCloseable, ISO, SQL {
 
         ApiLogger.getLogger().debug("queryRepaymentScore Criteria [" + repayedCriteria + "] \n\r\t " + query);
 
-        try (Statement statement = conn.createStatement(); ResultSet rs = statement.executeQuery(query)) {
-            if (rs.next()) {
-                if (repayedCriteria == 4) {
+        try (Statement statement = conn.createStatement(); ResultSet rs = statement.executeQuery(query))
+        {
+            if (rs.next())
+            {
+                if (repayedCriteria == 4)
+                {
                     String lateDays = rs.getString("lateDays"),
                             freezePeriodDays = rs.getString("freezePeriodDays"),
                             nextLoanDateAllowed = rs.getString("nextLoanDateAllowed"),
@@ -628,22 +819,31 @@ public class ScoringHandler implements AutoCloseable, ISO, SQL {
                     getCrCaller().setCall("nextLoanDateAllowed", nextLoanDateAllowed);
                     getCrCaller().setCall("todayMinusNextLoanDateAllowed", todayMinusNextLoanDateAllowed);
                     getCrCaller().setCall("isAllowed", isAllowed);
-                    if ("Y".equalsIgnoreCase(isAllowed)) {
+                    if ("Y".equalsIgnoreCase(isAllowed))
+                    {
                         /*if late days are too much; not eligible; this should be a setting*/
-                        if (Integer.parseInt(lateDays) > 15) {
+                        if (Integer.parseInt(lateDays) > 15)
+                        {
                             verified = false;
                             getCrCaller().setCall("**Late Days Eligibility", "Paid Too Late. Not Eligible.");
-                        } else {
+                        }
+                        else
+                        {
                             verified = true;
                         }
-                    } else {
+                    }
+                    else
+                    {
                         getCrCaller().setCall("Frozen", "Freeze Period in Effect");
                     }
-                } else {
+                }
+                else
+                {
                     verified = true;
                 }
             }
-        } catch (Exception e1) {
+        } catch (Exception e1)
+        {
             ApiLogger.getLogger().error(e1);
         }
         return verified;
@@ -683,7 +883,8 @@ public class ScoringHandler implements AutoCloseable, ISO, SQL {
 //        return finalScore;
 //    }
 
-    public BigDecimal checkAveDepositVolumeScore(Long RimNo, int NoOfMonths) {
+    public BigDecimal checkAveDepositVolumeScore(Long RimNo, int NoOfMonths)
+    {
         BigDecimal volumePercentage = XapiPool.dpAveVolPercentage.divide(BigDecimal.valueOf(100), 3, RoundingMode.DOWN),
                 finalVariableBAmount = BigDecimal.ZERO,
                 totalNetDeposits = BigDecimal.ZERO,
@@ -704,41 +905,51 @@ public class ScoringHandler implements AutoCloseable, ISO, SQL {
         /* get total deposits for each month for the last 'NoOfMonths'*/
         String getSumDeposits = "select sum(amt) sum_amt ,datepart(month,posting_dt_tm) txnMonth, count(*) noTxn /*,dh.acct_no*/ " +
                 "from " + XapiCodes.coreschema + "..dp_history dh, " + XapiCodes.coreschema + "..dp_display di " +
-                "where dh.acct_no = di.acct_no and rim_no = " + RimNo + " " +
-                "and di.class_code in (" + XapiPool.allowedDpClass + ") and dh.tran_code in (" + XapiPool.dpTranCode + ") " +
+                "where dh.acct_no = di.acct_no and rim_no = " + RimNo + "  and di.status ='Active' " +
+                "and di.class_code in (" + XapiPool.voluntaryDpClass + ") and dh.tran_code in (" + XapiPool.dpTranCode + ") " +
                 "and (datediff(mm,posting_dt_tm,(select dateadd(dd,1,last_to_dt) from  " + XapiCodes.coreschema + "..ov_control)) between 1 and 3) " +
                 "group by datepart(month,posting_dt_tm)";
 
         ApiLogger.getLogger().debug("checkAveDepositVolumeScore-getSumLoanInstalmentsDue \n\r\t " + getSumLoanInstalmentsDue);
         ApiLogger.getLogger().debug("checkAveDepositVolumeScore-getSumDeposits \n\r\t " + getSumDeposits);
 
-        try (Statement statement = conn.createStatement(); ResultSet rs = statement.executeQuery(getSumLoanInstalmentsDue)) {
-            while (rs.next()) {
+        try (Statement statement = conn.createStatement(); ResultSet rs = statement.executeQuery(getSumLoanInstalmentsDue))
+        {
+            while (rs.next())
+            {
                 lnAmountsPerMonth.put(rs.getInt("txnMonth"), rs.getBigDecimal("sum_amt"));
             }
-        } catch (Exception e1) {
+        } catch (Exception e1)
+        {
             ApiLogger.getLogger().error(e1);
         }
 
         getCrCaller().setCall("lnAmountsPerMonth", lnAmountsPerMonth.toString());
 
-        try (Statement statement = conn.createStatement(); ResultSet rs = statement.executeQuery(getSumDeposits)) {
-            while (rs.next()) {
+        try (Statement statement = conn.createStatement(); ResultSet rs = statement.executeQuery(getSumDeposits))
+        {
+            while (rs.next())
+            {
                 int month = rs.getInt("txnMonth");
                 BigDecimal sumAmtForMonth = rs.getBigDecimal("sum_amt");
                 getCrCaller().setCall("dpAmountsPerMonth", "Month: " + month + " SumAmtForMonth: " + sumAmtForMonth + "");
-                if (lnAmountsPerMonth.containsKey(month)) {
+                if (lnAmountsPerMonth.containsKey(month))
+                {
                     BigDecimal lnAmtForMonth = new BigDecimal(lnAmountsPerMonth.get(month).toString());
                     getCrCaller().setCall("lnAmountsPerMonth", "Month: " + month + " has a loan due; " + lnAmtForMonth + "; Deduct");
                     BigDecimal netDeposit = sumAmtForMonth.subtract(lnAmtForMonth);
                     dpAmountsPerMonth.put(month, netDeposit);
                     totalNetDeposits = totalNetDeposits.add(netDeposit);
-                } else {
+                }
+                else
+                {
                     dpAmountsPerMonth.put(month, sumAmtForMonth);
                     totalNetDeposits = totalNetDeposits.add(sumAmtForMonth);
                 }
             }
-        } catch (Exception e1) {
+
+        } catch (Exception e1)
+        {
             ApiLogger.getLogger().error(e1);
         }
 
@@ -808,29 +1019,43 @@ public class ScoringHandler implements AutoCloseable, ISO, SQL {
 //        return minimumAverageBalance;
 //    }
 
-    public BigDecimal checkMinAverageVolumeScore(Long RimNo, int NoOfMonths) {
+    public BigDecimal checkMinAverageVolumeScore(Long RimNo, BigDecimal cycleScore)
+    {
         BigDecimal minimumAverageBalance = BigDecimal.ZERO;
         /* get the minimum of the monthly average balance over the 3 previous months*/
         /* 01/10/2021-changed to get average balance over the last ~90 days
         as the table csa_avg_daily_bal only maintains last 90 day records per RIM */
-        String query = "select count(*) numTxns, sum(cs.cur_bal) totalBal, (sum(cs.cur_bal)/count(*)) averageBal from " +
-                "" + XapiCodes.coreschema + "..csa_avg_daily_bal cs, " + XapiCodes.coreschema + "..dp_display dp " +
-                "where cs.acct_no = dp.acct_no and cs.acct_type = dp.acct_type and rim_no = "+RimNo;
+//        String query = "select count(*) numTxns, sum(cs.cur_bal) totalBal, (sum(cs.cur_bal)/count(*)) averageBal from " +
+//                "" + XapiCodes.coreschema + "..csa_avg_daily_bal cs, " + XapiCodes.coreschema + "..dp_display dp " +
+//                "where cs.acct_no = dp.acct_no and cs.acct_type = dp.acct_type " +
+//                " and dp.class_code in (" + XapiPool.voluntaryDpClass + ") " +
+//                " and dp.status ='Active' and rim_no = " + RimNo;
+        /* calculate for every account then sum all balances up*/
+        String query = "select cast(sum(avCalcBal) as numeric(26,2)) averageBal from  " +
+                "  (select  count(*),sum(cs.cur_bal)sumBal , sum(cs.cur_bal) /count(*) avBal, sum(cs.cur_bal) /count(*)*" + cycleScore + " avCalcBal, cs.acct_no " +
+                "  from banking..csa_avg_daily_bal cs, banking..dp_display dp  " +
+                "  where cs.acct_no = dp.acct_no and cs.acct_type = dp.acct_type and rim_no = " + RimNo + " and dp.status ='Active' " +
+                "and dp.class_code in (" + XapiPool.voluntaryDpClass + ") " +
+                "group by cs.acct_no) av ";
 
         ApiLogger.getLogger().debug("checkMinAverageVolume (monthly average balance) \n\r\t " + query);
 
-        try (Statement statement = conn.createStatement(); ResultSet rs = statement.executeQuery(query)) {
-            if (rs.next()) {
+        try (Statement statement = conn.createStatement(); ResultSet rs = statement.executeQuery(query))
+        {
+            if (rs.next())
+            {
                 minimumAverageBalance = rs.getBigDecimal("averageBal");
             }
-        } catch (Exception e1) {
+        } catch (Exception e1)
+        {
             ApiLogger.getLogger().error(e1);
         }
         ApiLogger.getLogger().info("AverageBalance " + minimumAverageBalance);
         return minimumAverageBalance;
     }
 
-    public BigDecimal checkDepositPerPeriodScore(Long rimNo) {
+    public BigDecimal checkDepositPerPeriodScore(Long rimNo)
+    {
         System.out.println("<<<<< checking deposits per period >>>>>");
         HashMap<Integer, Boolean> periodMap = new HashMap<>();
         BigDecimal finalScore;
@@ -843,37 +1068,49 @@ public class ScoringHandler implements AutoCloseable, ISO, SQL {
         BigDecimal score6 = BigDecimal.ZERO;
         BigDecimal score9 = BigDecimal.ZERO;
 
-        for (int i = 0; i <= maxPeriod; i++) {
+        for (int i = 0; i <= maxPeriod; i++)
+        {
             ApiLogger.getLogger().info("Evaluate for Period: Last " + i + " Months");
             periodMap.put(i, verifyDepositsPerPeriod(i, rimNo));
             i += 2;
         }
-        for (Map.Entry<Integer, Boolean> entry : periodMap.entrySet()) {
+        for (Map.Entry<Integer, Boolean> entry : periodMap.entrySet())
+        {
             Integer monthPeriod = entry.getKey();
             boolean depositsVerifiedEachMonth = entry.getValue();
             ApiLogger.getLogger().info(rimNo + "-Month Period:  " + monthPeriod + " - Deposits Verified for Period: " + depositsVerifiedEachMonth);
 
             //change to reflect value on settings...
-            if ((monthPeriod == minPeriod) && depositsVerifiedEachMonth) {
+            if ((monthPeriod == minPeriod) && depositsVerifiedEachMonth)
+            {
                 score3 = XapiPool.dp3monthScore;
-                ApiLogger.getLogger().info(rimNo + "-Month Period: " + monthPeriod + " Score: " + score3);
-            } else if ((monthPeriod == midPeriod) && depositsVerifiedEachMonth) {
+                ApiLogger.getLogger().info(rimNo + "->>> Month Period: " + monthPeriod + " Score: " + score3);
+            }
+            else if ((monthPeriod == midPeriod) && depositsVerifiedEachMonth)
+            {
                 score6 = XapiPool.dp6monthScore;
                 ApiLogger.getLogger().info(rimNo + "-Month Period: " + monthPeriod + " Score: " + score6);
-            } else if ((monthPeriod == maxPeriod) && depositsVerifiedEachMonth) {
+            }
+            else if ((monthPeriod == maxPeriod) && depositsVerifiedEachMonth)
+            {
                 score9 = XapiPool.dp9monthScore;
                 ApiLogger.getLogger().info(rimNo + "-Month Period: " + monthPeriod + " Score: " + score9);
-            } else {
-                score3 = BigDecimal.ZERO;
-                ApiLogger.getLogger().info(rimNo + "-Month Period: " + monthPeriod + " Score: " + score3);
             }
+//            else
+//            {
+//                score3 = BigDecimal.ZERO;
+//                ApiLogger.getLogger().info(rimNo + "-Month Period: " + monthPeriod + " Score: " + score3);
+//            }
 
         }
-
+        ApiLogger.getLogger().info(rimNo + "-score3: " + score3 + " score6: " + score6 + " score9: " + score9);
         //check if the customer has deposit for at least 3 months
-        if (score3.compareTo(BigDecimal.ZERO) <= 0) {
+        if (score3.compareTo(BigDecimal.ZERO) <= 0)
+        {
             finalScore = BigDecimal.ZERO;
-        } else {
+        }
+        else
+        {
             finalScore = score3.max(score6.max(score9));
         }
         ApiLogger.getLogger().info(rimNo + "-FinalScore Depositor: " + finalScore);
@@ -881,9 +1118,12 @@ public class ScoringHandler implements AutoCloseable, ISO, SQL {
         return finalScore;
     }
 
-    public boolean verifyDepositsPerPeriod(int period, Long rimNo) {
+    public boolean verifyDepositsPerPeriod(int period, Long rimNo)
+    {
         boolean isVerified = true;
         HashMap<Integer, Long> txnCountMap = new HashMap<>();
+        ArrayList checkList = new ArrayList();
+        ArrayList evalList = new ArrayList();
 //        String query = "select count(*) noTxn, month(aa.create_dt) Txmonth " +
 //                "from " + XapiCodes.coreschema + "..dp_history aa, " + XapiCodes.coreschema + "..dp_display bb " +
 //                "where aa.acct_no = bb.acct_no  and bb.acct_type=aa.acct_type  and bb.rim_no =" + rimNo + " " +
@@ -891,97 +1131,135 @@ public class ScoringHandler implements AutoCloseable, ISO, SQL {
 //                "(select dateadd(dd,1,last_to_dt) from " + XapiCodes.coreschema + "..ov_control)) " +
 //                "between 0 and " + period + " group by aa.create_dt";
 
-        String query = "select count(*) noTxn, month(aa.create_dt) Txmonth " +
-                "from " + XapiCodes.coreschema + "..dp_history aa, " + XapiCodes.coreschema + "..dp_display bb " +
-                "where aa.acct_no = bb.acct_no  and bb.acct_type=aa.acct_type  and bb.rim_no =" + rimNo + " " +
-                "and aa.tran_code in (" + XapiPool.dpTranCode + ") and datediff(MM,aa.create_dt, " +
-                "(select dateadd(dd,1,last_to_dt) from " + XapiCodes.coreschema + "..ov_control)) " +
-                "between 1 and " + period + " group by month(aa.create_dt)";
+//        String query = "select count(*) noTxn, month(aa.create_dt) Txmonth " +
+//                "from " + XapiCodes.coreschema + "..dp_history aa, " + XapiCodes.coreschema + "..dp_display bb " +
+//                "where aa.acct_no = bb.acct_no  and bb.acct_type=aa.acct_type  and bb.rim_no =" + rimNo + " " +
+//                "and aa.tran_code in (" + XapiPool.dpTranCode + ") and datediff(MM,aa.create_dt, " +
+//                "(select dateadd(dd,1,last_to_dt) from " + XapiCodes.coreschema + "..ov_control)) " +
+//                "between 1 and " + period + " group by month(aa.create_dt)";
+        String query = "select distinct sd.Txmonth,Txyear,sd.diff, noTxn , sd.rim_no  from (select (select dateadd(dd,1,last_to_dt) from  " + XapiCodes.coreschema + "..ov_control) today, dh.create_dt,month(dh.create_dt) Txmonth,year(dh.create_dt) Txyear,   "
+                + " datediff(MM,dh.create_dt,(select dateadd(dd,1,last_to_dt) from " + XapiCodes.coreschema + "..ov_control)) diff,dh.acct_no ,ad.rim_no      "
+                + " from  " + XapiCodes.coreschema + "..dp_history dh," + XapiCodes.coreschema + "..dp_acct ad     "
+                + " where dh.acct_no =ad.acct_no and ad.rim_no =" + rimNo + "   "
+                + " and ad.status ='Active' and dh.tran_code in (101,100,102,117,103,107,113)   "
+                + " and datediff(MM,dh.create_dt,(select dateadd(dd,1,last_to_dt) from " + XapiCodes.coreschema + "..ov_control)) between 1 and  " + period + " )  sd      "
+                + " left join (select count(*) noTxn,month(dh.create_dt) Txmonth,ad.rim_no    "
+                + "             from " + XapiCodes.coreschema + "..dp_history dh," + XapiCodes.coreschema + "..dp_acct ad   "
+                + "             where dh.acct_no =ad.acct_no and ad.rim_no =" + rimNo + "   "
+                + "            and ad.status ='Active'  and tran_code in (101,100,102,117,103,107,113)     "
+                + "            and datediff(MM,dh.create_dt,(select dateadd(dd,1,last_to_dt) from  " + XapiCodes.coreschema + "..ov_control)) between 1 and  " + period + "     "
+                + "            group by month(dh.create_dt),ad.rim_no) sf on sd.rim_no = sf.rim_no where sd.Txmonth = sf.Txmonth   "
+                + "            order by diff";
 
         ApiLogger.getLogger().info(rimNo + "-verifyDepositsPerPeriod\n\r\t " + query);
         try (Statement statement = conn.createStatement();
-             ResultSet rs = statement.executeQuery(query)) {
+             ResultSet rs = statement.executeQuery(query))
+        {
 //            if (rs.next()) {
 //                txnCountMap.put(rs.getInt("Txmonth"), rs.getLong("noTxn"));
 //                isVerified = true;
 //            }
-            while (rs.next()) {
+            while (rs.next())
+            {
                 txnCountMap.put(rs.getInt("Txmonth"), rs.getLong("noTxn"));
+                evalList.add(rs.getInt("diff"));
             }
 
-        } catch (Exception e1) {
+        } catch (Exception e1)
+        {
             ApiLogger.getLogger().error(e1);
         }
 
-        for (Map.Entry<Integer, Long> entry : txnCountMap.entrySet()) {
-            Integer monthPeriod = entry.getKey();
-            Long noOfTxns = entry.getValue();
-            ApiLogger.getLogger().info(rimNo + "-TxnCountMap - Month Period: " + monthPeriod + " No of Txn for Period: " + noOfTxns);
-
-            if (noOfTxns == 0 && period != 0) {
-                isVerified = false;
-            }
+        for (int i = 1; i <= period; i++)
+        {
+            checkList.add(i);
         }
-
+//        for (Map.Entry<Integer, Long> entry : txnCountMap.entrySet())
+//        {
+//            Integer monthPeriod = entry.getKey();
+//            Long noOfTxns = entry.getValue();
+//            ApiLogger.getLogger().info(rimNo + "-TxnCountMap - Month Period: " + monthPeriod + " No of Txn for Period: " + noOfTxns);
+//
+//            if (noOfTxns == 0 && period != 0)
+//            {
+//                isVerified = false;
+//            }
+//        }
+        ApiLogger.getLogger().info(rimNo + "-TxnCountMap - Month Period:" + period + " is = " + evalList + " No of Txn for Period to check against: " + checkList);
+        isVerified = evalList.equals(checkList);
         return isVerified;
     }
 
-    private boolean checkIfExists(String queryType, String query) {
+    private boolean checkIfExists(String queryType, String query)
+    {
         boolean exists = false;
         ApiLogger.getLogger().debug(queryType + "\n\t" + query + "\n");
         try (Statement statement = conn.createStatement();
-             ResultSet rs = statement.executeQuery(query)) {
+             ResultSet rs = statement.executeQuery(query))
+        {
             exists = rs.next();
-        } catch (Exception ex) {
+        } catch (Exception ex)
+        {
             ex.printStackTrace();
         }
         System.err.println("query+exists " + exists);
         return exists;
     }
 
-    public StringBuilder getBuilder(boolean reset) {
+    public StringBuilder getBuilder(boolean reset)
+    {
         if (reset)
             builder.setLength(0);
         return builder;
     }
 
-    public BLScoreCard getBlScoreCard() {
+    public BLScoreCard getBlScoreCard()
+    {
         return blScoreCard;
     }
 
-    public void setBlScoreCard(BLScoreCard blScoreCard) {
+    public void setBlScoreCard(BLScoreCard blScoreCard)
+    {
         this.blScoreCard = blScoreCard;
     }
 
-    public CRCaller getCrCaller() {
+    public CRCaller getCrCaller()
+    {
         return crCaller;
     }
 
-    public void setCrCaller(CRCaller crCaller) {
+    public void setCrCaller(CRCaller crCaller)
+    {
         this.crCaller = crCaller;
     }
 
-    public long getEndTime() {
+    public long getEndTime()
+    {
         return endTime;
     }
 
-    public void setEndTime(long endTime) {
+    public void setEndTime(long endTime)
+    {
         this.endTime = endTime;
     }
 
-    public long getStartTime() {
+    public long getStartTime()
+    {
         return startTime;
     }
 
-    public void setStartTime(long startTime) {
+    public void setStartTime(long startTime)
+    {
         this.startTime = startTime;
     }
 
-    public StringBuilder getBuilder() {
+    public StringBuilder getBuilder()
+    {
         return builder;
     }
 
-    public void setBuilder(StringBuilder builder) {
+    public void setBuilder(StringBuilder builder)
+    {
         this.builder = builder;
     }
 
